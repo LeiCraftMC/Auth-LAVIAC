@@ -1,0 +1,19 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme {
+	--font-sans: "Rubik", sans-serif;
+}
+
+:root {
+	color-scheme: dark;
+}
+
+html {
+	scroll-behavior: smooth;
+}
+
+/* slate-950 — the standard app background across the ecosystem. */
+.main-bg-color {
+	background-color: rgb(2 6 23);
+}
