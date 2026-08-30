@@ -1,28 +1,25 @@
 import { DB } from "../db";
-import { auditLog } from "../db/schema";
 
-/**
- * Audit — appends a row to the `audit_log` table for privileged actions.
- * Best-effort: failures are logged but never block the request.
- */
 export class Audit {
+
 	static async log(
 		actorSub: string,
 		action: string,
 		targetInstanceId?: string | null,
 		detail?: string | null,
 	): Promise<void> {
+
 		try {
 			await DB.instance()
-				.insert(auditLog)
+				.insert(DB.Tables.auditLog)
 				.values({
-					actorSub,
+					actor_sub: actorSub,
 					action,
-					targetInstanceId: targetInstanceId ?? null,
+					target_instance_id: targetInstanceId ?? null,
 					detail: detail ?? null,
 				});
-		} catch {
-			// swallow — audit must not break the user action
+		} catch (err: any) {
+			Logger.error("Error writing to audit log:", err)
 		}
 	}
 }

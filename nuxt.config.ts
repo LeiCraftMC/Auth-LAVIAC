@@ -1,23 +1,33 @@
-// LAVIAC — full-stack Nuxt app (Hono backend mounted in Nitro `server/`).
-// See Style-Guides docs/01 (Full-stack Nuxt app) and docs/04 (Mounting Hono in Nitro).
+// https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-	future: { compatibilityVersion: 4 },
-	srcDir: "app/",
-	ssr: false, // internal admin dashboard — no SEO, avoids SSR auth/cookie complexity
+
+	compatibilityDate: "2026-08-20",
+	devtools: { enabled: true },
 	modules: ["@nuxt/ui"],
+
+	colorMode: {
+		preference: "dark",
+		fallback: "dark",
+		classSuffix: "",
+	},
+	
+	ssr: true,
 	css: ["~/assets/css/main.css"],
-	ui: { colorMode: true },
-	compatibilityDate: "2026-08-27",
 	nitro: {
 		preset: "bun",
-		rollupConfig: {
-			external: ["bun:sqlite"],
-		},
+		// Keep the native SQLite binding out of the bundle.
+		rollupConfig: { external: ["bun:sqlite"] },
 	},
 	runtimeConfig: {
 		public: {
-			apiUrl: process.env.NUXT_PUBLIC_API_URL || "http://localhost:3000",
-			appUrl: process.env.NUXT_PUBLIC_APP_URL || "http://localhost:3000",
+			appUrl: process.env.LCCFWSP_APP_URL  || "http://localhost:12400",
 		},
 	},
+	routeRules: {
+		"/instances/**": { ssr: false },
+		"/auth/**": { ssr: false },
+		"/**": { ssr: true },
+	},
+
+	telemetry: false
 });

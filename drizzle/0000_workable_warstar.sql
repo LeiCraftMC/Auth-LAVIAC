@@ -7,15 +7,20 @@ CREATE TABLE `audit_log` (
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `metadata` (
+	`key` text PRIMARY KEY NOT NULL,
+	`data` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `sessions` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`token` text NOT NULL,
+	`hashed_token` text NOT NULL,
 	`zitadel_sub` text NOT NULL,
 	`zitadel_email` text,
 	`zitadel_name` text,
-	`is_admin` integer DEFAULT false NOT NULL,
+	`user_role` text DEFAULT 'member' NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`expires_at` integer NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `sessions_token_unique` ON `sessions` (`token`);
+CREATE UNIQUE INDEX `sessions_hashed_token_unique` ON `sessions` (`hashed_token`);

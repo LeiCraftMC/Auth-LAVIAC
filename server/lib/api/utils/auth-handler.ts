@@ -1,22 +1,26 @@
 /**
  * AuthHandler — resolves the bearer/cookie session token into an AuthContext.
  *
- * Sessions are created in the OIDC callback route and stored in the `sessions` table.
- * The opaque `token` is carried in the `laviac_session_token` cookie, which the frontend
- * `useAPI` composable forwards as `Authorization: Bearer <token>`. Adapted from
+ * Sessions are created in the OIDC callback route and stored in `DB.Tables.sessions`.
+ * Only the SHA-256 hash of the opaque token is persisted (docs/08). The raw token is carried
+ * in the `laviac_session_token` cookie, which the frontend `useAPI` composable forwards as
+ * `Authorization: Bearer <token>`. Adapted from
  * Style-Guides shared/backend/auth-handler.example.ts (docs/10-auth.md).
  */
-import { randomBytes } from "node:crypto";
-import { eq, lt } from "drizzle-orm";
+import { createHash, randomBytes } from "node:crypto";
+import { and, eq, lt } from "drizzle-orm";
 import type { Context } from "hono";
 import { getCookie } from "hono/cookie";
 import { DB } from "../../../db";
-import { sessions } from "../../../db/schema";
 import type { OIDCSessionInfo } from "../../../oidc/handler";
 import { ConfigHandler } from "../../../utils/config";
 import { Logger } from "../../../utils/logger";
 
 export const SESSION_COOKIE = "laviac_session_token";
+
+function hashToken(token: string): string {
+	return createHash("sha256").update(token).digest("hex");
+}
 
 export namespace AuthHandler {
 	export type AuthContext =
@@ -37,19 +41,24 @@ export class AuthHandler {
 		if (!token) return { type: "unauthenticated" };
 
 		const now = Date.now();
-		let row: DB.Models.Session | undefined;
+		let rows: DB.Models.Session[];
 		try {
-			row = await DB.instance().query.sessions.findFirst({ where: eq(sessions.token, token) });
+			rows = await DB.instance()
+				.select()
+				.from(DB.Tables.sessions)
+				.where(eq(DB.Tables.sessions.hashed_token, hashToken(token)))
+				.limit(1);
 		} catch {
 			// DB unavailable / not yet migrated — no session can be resolved.
 			Logger.debug("Session lookup failed; treating as unauthenticated.");
 			return { type: "unauthenticated" };
 		}
 
-		if (!row || row.expiresAt <= now) {
+		const row = rows[0];
+		if (!row || row.expires_at <= now) {
 			if (row) {
 				// proactively purge the expired row
-				await DB.instance().delete(sessions).where(eq(sessions.id, row.id));
+				await DB.instance().delete(DB.Tables.sessions).where(eq(DB.Tables.sessions.id, row.id));
 			}
 			return { type: "unauthenticated" };
 		}
@@ -57,16 +66,16 @@ export class AuthHandler {
 		return {
 			type: "session",
 			sessionId: row.id,
-			sub: row.zitadelSub,
-			email: row.zitadelEmail,
-			name: row.zitadelName,
-			isAdmin: row.isAdmin,
+			sub: row.zitadel_sub,
+			email: row.zitadel_email,
+			name: row.zitadel_name,
+			isAdmin: row.user_role === "admin",
 		};
 	}
 
 	/**
 	 * Read the authContext that the global middleware stashed on the request.
-	 * The Hono app is untyped (see docs/03 — a typed Variables generic conflicts with
+	 * The Hono app is untyped (a typed Variables generic conflicts with
 	 * APIVersionRouter's `HonoBase` routes), so the value is read dynamically.
 	 */
 	static getAuthContext(c: Context): AuthHandler.AuthContext {
@@ -96,32 +105,34 @@ export class AuthHandler {
 		const config = ConfigHandler.getConfig();
 		const ttlHours = config.LAVIAC_SESSION_TTL_HOURS ? Number(config.LAVIAC_SESSION_TTL_HOURS) : 12;
 		const token = randomBytes(32).toString("hex");
-		const now = Date.now();
 
 		await DB.instance()
-			.insert(sessions)
+			.insert(DB.Tables.sessions)
 			.values({
-				token,
-				zitadelSub: info.sub,
-				zitadelEmail: (info.userinfo.email as string | undefined) ?? null,
-				zitadelName:
+				hashed_token: hashToken(token),
+				zitadel_sub: info.sub,
+				zitadel_email: (info.userinfo.email as string | undefined) ?? null,
+				zitadel_name:
 					(info.userinfo.name as string | undefined) ??
 					(info.userinfo.preferred_username as string | undefined) ??
 					null,
-				isAdmin,
-				expiresAt: now + ttlHours * 60 * 60 * 1000,
+				user_role: isAdmin ? "admin" : "member",
+				expires_at: Date.now() + ttlHours * 60 * 60 * 1000,
 			});
 
 		return token;
 	}
 
 	static async deleteSession(token: string): Promise<void> {
-		await DB.instance().delete(sessions).where(eq(sessions.token, token));
+		await DB.instance()
+			.delete(DB.Tables.sessions)
+			.where(eq(DB.Tables.sessions.hashed_token, hashToken(token)));
 	}
 
 	static async cleanupExpired(): Promise<void> {
-		const now = Date.now();
-		await DB.instance().delete(sessions).where(lt(sessions.expiresAt, now));
+		await DB.instance()
+			.delete(DB.Tables.sessions)
+			.where(and(lt(DB.Tables.sessions.expires_at, Date.now())));
 		Logger.debug("Expired sessions purged.");
 	}
 }

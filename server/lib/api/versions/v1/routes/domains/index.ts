@@ -1,13 +1,16 @@
 /**
  * Domains router — cross-instance domain operations.
- *   POST /domains/:domain/_exists → check whether a domain is already used by any instance
+ *   GET /domains/:domain/_exists → check whether a domain is already used by any instance
+ *
+ * The exists check is a safe read, so it is a GET (the Zitadel upstream call it maps to
+ * remains a POST — see ZitadelClient.existsDomain).
  */
 import { Hono } from "hono";
 import { ZitadelClient } from "../../../../../../zitadel/client";
 import { APIResponse } from "../../../../utils/api-response";
 import { APIResponseSpec, APIRouteSpec } from "../../../../utils/spec-helpers";
 import { requireAdmin } from "../../middleware/auth";
-import { DOCS_TAGS } from "../../tags";
+import { DOCS_TAGS } from "../../docs";
 import { handleZitadelError } from "../instances/errors";
 import { DomainsModel } from "./model";
 
@@ -15,7 +18,7 @@ const app = new Hono();
 
 app.use("/domains/*", requireAdmin);
 
-app.post(
+app.get(
 	"/domains/:domain/_exists",
 	APIRouteSpec.authenticated({
 		summary: "Check domain availability",

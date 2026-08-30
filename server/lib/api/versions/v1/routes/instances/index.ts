@@ -18,7 +18,7 @@ import { APIResponse } from "../../../../utils/api-response";
 import { AuthHandler } from "../../../../utils/auth-handler";
 import { APIResponseSpec, APIRouteSpec } from "../../../../utils/spec-helpers";
 import { requireAdmin } from "../../middleware/auth";
-import { DOCS_TAGS } from "../../tags";
+import { DOCS_TAGS } from "../../docs";
 import { instanceDomainsRouter } from "./domains";
 import { handleZitadelError } from "./errors";
 import { instanceLimitsRouter } from "./limits";

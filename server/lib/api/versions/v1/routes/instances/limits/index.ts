@@ -8,7 +8,7 @@ import { validator } from "hono-openapi";
 import { ZitadelClient } from "../../../../../../../zitadel/client";
 import { APIResponse } from "../../../../../utils/api-response";
 import { APIResponseSpec, APIRouteSpec } from "../../../../../utils/spec-helpers";
-import { DOCS_TAGS } from "../../../tags";
+import { DOCS_TAGS } from "../../../docs";
 import { handleZitadelError } from "../errors";
 import { LimitsModel } from "../model";
 

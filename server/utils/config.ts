@@ -83,26 +83,37 @@ class ConfigSchema<T extends ConfigSchemaSettings = {}> {
 	}
 }
 
-const schema = new ConfigSchema()
-	.add("LAVIAC_LOG_LEVEL", false, ["debug", "info", "warn", "error", "critical"])
-	.add("LAVIAC_API_DISABLE_DOCS", false, [true, false])
-	.add("LAVIAC_DB_PATH", false)
-	.add("LAVIAC_DB_AUTO_MIGRATE", false, [true, false])
-	.add("LAVIAC_APP_URL", false)
-	.add("LAVIAC_ZITADEL_URL", false)
-	.add("LAVIAC_ZITADEL_SYSTEM_USER_ID", false)
-	.add("LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY", false)
-	.add("LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH", false)
-	.add("LAVIAC_OIDC_CLIENT_ID", false)
-	.add("LAVIAC_OIDC_CLIENT_SECRET", false)
-	.add("LAVIAC_OIDC_ADMIN_ROLE", false)
-	.add("LAVIAC_SESSION_TTL_HOURS", false);
 
-export type ParsedConfig = ConfigLike<typeof schema.schema>;
+// @ts-ignore
+export type ParsedConfig = ConfigLike<typeof ConfigHandler.schema.schema>;
 
 export class ConfigHandler {
+
+	private static readonly schema = new ConfigSchema()
+		.add("LAVIAC_LOG_LEVEL", false, ["debug", "info", "warn", "error", "critical"])
+
+		.add("LAVIAC_API_DISABLE_DOCS", false, [true, false])
+		
+		.add("LAVIAC_DB_PATH", false)
+		.add("LAVIAC_DB_AUTO_MIGRATE", false, [true, false])
+
+		.add("LAVIAC_CONFIG_BASE_DIR", false)
+
+		.add("LAVIAC_APP_URL", false)
+
+		.add("LAVIAC_ZITADEL_URL", false)
+		.add("LAVIAC_ZITADEL_SYSTEM_USER_ID", false)
+		.add("LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH", false)
+
+		.add("LAVIAC_OIDC_CLIENT_ID", false)
+		.add("LAVIAC_OIDC_CLIENT_SECRET", false)
+		.add("LAVIAC_OIDC_ADMIN_ROLE", false)
+		.add("LAVIAC_SESSION_TTL_HOURS", false)
+	;
+
 	private static config: ParsedConfig | null = null;
 
+	/** You have to call {@link ConfigHandler.parseConfigFile} before trying to access the config. */
 	static getConfig(): ParsedConfig {
 		if (!ConfigHandler.config) {
 			throw new Error("Config not loaded. Call ConfigHandler.loadConfig() first.");
@@ -111,28 +122,10 @@ export class ConfigHandler {
 	}
 
 	static async loadConfig(): Promise<ParsedConfig> {
-		if (ConfigHandler.config) return ConfigHandler.config;
-		ConfigHandler.config = schema.parse();
-		return ConfigHandler.config;
+		if (this.config) return this.config;
+        this.config = this.schema.parse();
+        return this.config;
 	}
 }
 
-/**
- * Resolve the system-user RSA private key PEM from env: either the inline PEM
- * (LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY) or a file path
- * (LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH).
- */
-export function resolveSystemUserPrivateKey(): string {
-	const config = ConfigHandler.getConfig();
-	if (config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY) {
-		return config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY;
-	}
-	const path = config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH;
-	if (path) {
-		return readFileSync(path, "utf8");
-	}
-	Logger.error(
-		"Neither LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY nor LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH is set.",
-	);
-	process.exit(1);
-}
+

@@ -123,13 +123,13 @@ class LazyAsyncDataRequestWrapper<TReturn> {
 	}
 }
 
-export async function useAPI<TReturn = any>(
-	handler: (api: UseAPITypes.APIClient) => Promise<TReturn>,
+export async function useAPI(
+	handler: (api: UseAPITypes.APIClient) => any,
 	disableAuthRedirect = false,
 ): Promise<any> {
-	// `@hey-api/client-fetch` resolves to `{ data, error, request, response }`. The LAVIAC
-	// backend always returns the `{ success, code, message, data }` envelope, so the body is
-	// in `result.data` on success and `result.error` on failure — unwrap to the envelope.
+	// `@hey-api/client-fetch` returns `{ data, error, request?, response? }`.
+	// The LAVIAC backend always returns the `{ success, code, message, data }` envelope,
+	// so the envelope is in `raw.data` on success and `raw.error` on failure — unwrap it.
 	const unwrap = (raw: any): any => raw?.data ?? raw?.error ?? raw;
 
 	try {
@@ -156,6 +156,7 @@ export async function useAPI<TReturn = any>(
 				result?.code === 401 &&
 				(result?.message === "Invalid or expired token" ||
 					result?.message === "Missing or invalid Authorization header" ||
+					// LAVIAC's /auth/me rejects unauthenticated sessions with this message.
 					result?.message === "Not authenticated")
 			) {
 				updateAPIClient(null);

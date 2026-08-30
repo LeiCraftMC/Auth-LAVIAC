@@ -17,7 +17,7 @@ import { Logger } from "../../../../../../utils/logger";
 import { APIResponse } from "../../../../utils/api-response";
 import { AuthHandler, SESSION_COOKIE } from "../../../../utils/auth-handler";
 import { APIResponseSpec, APIRouteSpec } from "../../../../utils/spec-helpers";
-import { DOCS_TAGS } from "../../tags";
+import { DOCS_TAGS } from "../../docs";
 import { AuthModel } from "./model";
 
 const app = new Hono();

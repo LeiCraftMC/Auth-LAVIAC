@@ -13,7 +13,7 @@ class UserStore extends BasicAbstractStore<AdminUser> {
 	}
 
 	protected async fetchData() {
-		const result = await useAPI((api) => api.getAuthMe(), true);
+		const result = await useAPI((api) => api.getAuthMe({}), true);
 		return result.success ? (result.data as AdminUser) : null;
 	}
 }

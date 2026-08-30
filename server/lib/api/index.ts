@@ -1,72 +1,105 @@
-/**
- * API — the Hono app, mounted inside Nitro (full-stack Nuxt shape).
- *
- * No Bun.serve / Main.main() / shutdown handlers — Nitro owns the lifecycle. init() is
- * called from server/plugins/startup.ts; the catch-all server/routes/api/[...].ts
- * forwards each request to getApp().fetch(). See Style-Guides docs/04 (Mounting Hono in
- * Nitro) and docs/01 (Full-stack Nuxt app).
- */
-
-import { Scalar } from "@scalar/hono-api-reference";
-import { Hono } from "hono";
-import { HTTPException } from "hono/http-exception";
-import { prettyJSON } from "hono/pretty-json";
-import { openAPIRouteHandler } from "hono-openapi";
 import { Logger } from "../../utils/logger";
+import { Hono } from "hono";
+import { prettyJSON } from "hono/pretty-json";
+import { HTTPException } from 'hono/http-exception'
 import type { APIVersionRouter } from "./utils/api-version-router";
-import { AuthHandler } from "./utils/auth-handler";
 import { APIv1Router } from "./versions/v1";
+import { openAPIRouteHandler } from "hono-openapi";
+import { Scalar } from "@scalar/hono-api-reference";
 
 export class API {
+
 	protected static app: Hono | undefined;
+
 	protected static latestVersion: number | null = null;
 
-	protected static registerVersion(versionRouter: APIVersionRouter, disableDocs = false) {
-		if (!API.app) throw new Error("API not initialized. Call API.init() first.");
-		API.app.route(`/v${versionRouter.version}`, versionRouter.router);
-		if (!API.latestVersion || versionRouter.version > API.latestVersion) {
-			API.latestVersion = versionRouter.version;
+	protected static registerVersion(versionRouter: APIVersionRouter, disableDocs: boolean = false) {
+
+		if (!this.app) {
+			throw new Error("API not initialized. Call API.init() first.");
 		}
+
+		this.app.route(`/v${versionRouter.version}`, versionRouter.router);
+
+		if (!this.latestVersion || versionRouter.version > this.latestVersion) {
+			this.latestVersion = versionRouter.version;
+		}
+
 		if (!disableDocs) {
-			API.app.get(
+
+			this.app.get(
 				`/docs/v${versionRouter.version}/openapi`,
 				openAPIRouteHandler(versionRouter.router, versionRouter.openAPIConfig),
 			);
-			API.app.get(
+
+			this.app.get(
 				`/docs/v${versionRouter.version}`,
-				Scalar({ url: `/docs/v${versionRouter.version}/openapi` }),
+				Scalar({ url: `/docs/v${versionRouter.version}/openapi` })
 			);
+
 		}
 	}
 
-	static async init(disableDocs = false) {
-		API.app = new Hono();
+		static async init(
+		disableDocs = false
+	) {
 
-		API.app.use(prettyJSON());
+		this.app = new Hono();
 
-		// Resolve the session on every request so handlers can read it via AuthHandler.getAuthContext.
-		API.app.use("*", async (c, next) => {
-			AuthHandler.setAuthContext(c, await AuthHandler.resolveRequest(c));
-			await next();
-		});
+		this.app.use(prettyJSON())
 
-		API.app.onError((err, c) => {
+		this.app.onError(async (err, c) => {
 			if (err instanceof HTTPException) {
-				return c.json({ success: false, code: err.status, message: err.message }, err.status);
+				// Return only safe error metadata — never leak Zod validation details
+				return c.json({
+					success: false,
+					code: err.status,
+					message: 'Your input is invalid',
+				}, err.status)
 			}
+
 			Logger.error("API Error:", err);
-			return c.json({ success: false, code: 500, message: "Internal Server Error" }, 500);
+			return c.json({ success: false, code: 500, message: 'Internal Server Error' }, 500);
 		});
 
-		API.registerVersion(new APIv1Router(), disableDocs);
 
-		API.app.get("/health", (c) =>
-			c.json({ success: true, code: 200, message: "healthy", data: null }),
-		);
+		this.registerVersion(new APIv1Router, disableDocs);
+
+
+		this.app.get("/health", (c) => {
+			return c.json({
+				success: true,
+				code: 200,
+				message: "LAVIAC API is running",
+				data: null
+			});
+		});
+
+		if (!disableDocs) {
+
+			this.app.get("/", (c) => {
+				return c.redirect(`/docs/v${this.latestVersion}`);
+			});
+
+		} else {
+
+			this.app.get("/", (c) => {
+				return c.json({
+					success: true,
+					code: 200,
+					message: "LAVIAC API is running. Documentation is disabled.",
+					data: null
+				});
+			});
+		}
+
 	}
 
 	static getApp(): Hono {
-		if (!API.app) throw new Error("API not initialized. Call API.init() first.");
-		return API.app;
+		if (!this.app) {
+			throw new Error("API not initialized. Call API.init() first.");
+		}
+		return this.app;
 	}
+
 }

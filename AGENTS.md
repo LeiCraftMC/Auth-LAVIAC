@@ -28,17 +28,28 @@ a `server/plugins/startup.ts` Nitro plugin boots config → DB → API. See Styl
 
 1. **Admin auth = Zitadel OIDC** (Authorization Code + PKCE) via `openid-client`. The guide's
    docs/10 covers opaque bearer sessions only; LAVIAC is an OIDC client of the master Zitadel
-   instance. Sessions are still opaque tokens in the `sessions` SQLite table (the cookie
-   `laviac_session_token` is forwarded as `Authorization: Bearer` by `useAPI`).
+   instance. The raw `laviac_session_token` cookie is forwarded as `Authorization: Bearer` by
+   `useAPI`. Only the **SHA-256 hash** of the token is stored in `DB.Tables.sessions`
+   (`hashed_token`); the lookup hashes the incoming token on every request.
 2. **Admin authorization = Zitadel project role.** The role claim
    `urn:zitadel:iam:org:project:roles` must contain the configured role
-   (`LAVIAC_OIDC_ADMIN_ROLE`, default `laviac_admin`).
+   (`LAVIAC_OIDC_ADMIN_ROLE`, default `laviac_admin`). The cached `user_role` column in
+   `sessions` stores this as a string enum (`UserAccountSettings.Roles` in
+   `server/lib/api/utils/shared-models/accountData.ts`).
 3. **Zitadel System API auth = system-user JWT.** A self-signed RS256 JWT (RSA keypair registered
    in Zitadel `SystemAPIUsers` runtime settings) is sent directly as `Bearer` to
    `/system/v1/*`. This is the only System API auth method (self-hosted only). See
    `server/zitadel/jwt.ts` and
    <https://zitadel.com/docs/guides/integrate/zitadel-apis/access-zitadel-system-api>.
-4. **v1 scope = cross-instance control**: instance CRUD, custom domains, limits/quota over the
+4. **DB layer is dialect-neutral.** `server/db/index.ts` exposes `DB.instance()` and
+   `DB.Tables` / `DB.Models`. No initial-admin bootstrap here; admins are created in Zitadel and
+   admitted by the OIDC role. The `metadata` KV table is also standard.
+5. **Generated API client uses `@hey-api/client-fetch`.** The style guide's docs/06 recommends
+   `@hey-api/client-nuxt`, but `client-nuxt` v0.2.1 produces internal type errors under
+   Windows/Bun/vue-tsc 3.3 (duplicate `AsyncData`/`NuxtError` symbols from `nuxt/app` vs `#app`).
+   `useAPI` unwraps the `{ data, error, ... }` wrapper to the LAVIAC envelope. Once the upstream
+   plugin is fixed, migrate back to `client-nuxt`.
+6. **v1 scope = cross-instance control**: instance CRUD, custom domains, limits/quota over the
    v1 System API. Per-instance Admin-API settings (login policy, branding, password complexity)
    are **Phase 2** (needs a second service account + instance-context routing).
 
@@ -46,7 +57,8 @@ a `server/plugins/startup.ts` Nitro plugin boots config → DB → API. See Styl
 
 - Backend: `server/lib/api/versions/v1/routes/{health,auth,instances,domains}/`.
 - Zitadel client: `server/zitadel/{client.ts,jwt.ts,types.ts}`.
-- OIDC: `server/oidc/handler.ts`. Session/audit: `server/db/schema.ts`, `server/utils/audit.ts`.
+- OIDC/session: `server/oidc/handler.ts`, `server/lib/api/utils/auth-handler.ts`.
+- DB/audit: `server/db/{index.ts,schema.ts,utils.ts}`, `server/utils/audit.ts`.
 - Frontend pages: `app/pages/{auth/login.vue, instances/}`. Components: `app/components/{layout,dashboard}/`.
 - Config: `server/utils/config.ts` (all `LAVIAC_*` env vars; `example.env` documents them).
 

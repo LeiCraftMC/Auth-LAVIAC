@@ -10,7 +10,7 @@ describe("health", () => {
 		process.env.LAVIAC_DB_PATH = ":memory:";
 		process.env.LAVIAC_DB_AUTO_MIGRATE = "false";
 		await ConfigHandler.loadConfig();
-		DB.init(":memory:", false);
+		await DB.init(":memory:", false);
 		await API.init(true); // disable docs for the test
 	});
 

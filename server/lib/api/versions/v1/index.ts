@@ -1,11 +1,16 @@
-/**
- * APIv1Router — mounts all v1 resource routers. Mounted at /api/v1 by the API class.
- */
 import { APIVersionRouter } from "../../utils/api-version-router";
 import { authRouter } from "./routes/auth";
 import { domainsRouter } from "./routes/domains";
 import { healthRouter } from "./routes/health";
 import { instancesRouter } from "./routes/instances";
+
+const router = new Hono();
+
+router.use(authMiddlewareV1);
+
+router.route("/", authRouter);
+router.route("/", instancesRouter);
+router.route("/", domainsRouter);
 
 export class APIv1Router extends APIVersionRouter {
 	constructor() {

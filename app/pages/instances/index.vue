@@ -10,7 +10,7 @@ const { data, pending, refresh } = await useLazyAsyncData<{
 	instances: Instance[] | null;
 	error: string;
 }>("instances-list", async () => {
-	const result = await useAPI((api) => api.listInstances());
+	const result = await useAPI((api) => api.listInstances({}));
 	if (!result.success) {
 		return { instances: null, error: result.message };
 	}

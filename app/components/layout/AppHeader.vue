@@ -3,7 +3,7 @@ const store = useUserStore();
 const user = await store.use();
 
 async function logout() {
-	await useAPI((api) => api.postAuthLogout(), true);
+	await useAPI((api) => api.postAuthLogout({}), true);
 	useAppCookies().sessionToken.set(null);
 	await store.clear();
 	await navigateTo("/auth/login");

@@ -302,14 +302,14 @@ export const zPutInstancesByInstanceIdLimitsResponse = z.object({
     data: z.null()
 });
 
-export const zPostDomainsByDomainExistsPath = z.object({
+export const zGetDomainsByDomainExistsPath = z.object({
     domain: z.string()
 });
 
 /**
  * Domain availability
  */
-export const zPostDomainsByDomainExistsResponse = z.object({
+export const zGetDomainsByDomainExistsResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
     message: z.literal('Domain availability'),

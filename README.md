@@ -13,7 +13,7 @@ Hono backend mounted inside Nitro (`server/`).
 
 ```
 LAVIAC/
-├── app/                         # Nuxt 4 dashboard (NuxtUI v3 + Tailwind v4, dark-first)
+├── app/                         # Nuxt 4 dashboard (NuxtUI v4 + Tailwind v4, dark-first)
 │   ├── pages/{auth, instances}/ # login, instance list / create / detail
 │   ├── components/{layout, dashboard}/
 │   ├── composables/             # useAPI, stores, cookies
@@ -22,15 +22,15 @@ LAVIAC/
 │   ├── lib/api/                 # API class, v1 router, route models, OpenAPI/Scalar
 │   ├── zitadel/                 # System API client + system-user JWT (RS256)
 │   ├── oidc/                    # Zitadel OIDC handler (Authorization Code + PKCE)
-│   ├── db/                      # Drizzle/SQLite — sessions + audit log
+│   ├── db/                      # Drizzle/SQLite — sessions + audit log + metadata
 │   ├── routes/api/[...].ts      # Nitro catch-all → Hono
 │   └── plugins/startup.ts       # boot: config → DB → API
-└── openapi-ts.config.ts         # frontend client generation (spec at /api/docs/v1/openapi)
+└── openapi-ts.config.ts         # frontend client generation (spec written by the script)
 ```
 
 - **Admin login**: Zitadel OIDC. LAVIAC is a confidential OIDC client; the backend exchanges the
   code, reads the `urn:zitadel:iam:org:project:roles` claim, and admits users with the configured
-  admin role. An opaque session token is stored in SQLite and carried in the
+  admin role. An opaque session token is stored **hashed** in SQLite and carried in the
   `laviac_session_token` cookie.
 - **System API auth**: a **system API user** — an RSA keypair whose public key is registered in
   Zitadel runtime settings (`SystemAPIUsers`). The backend mints a self-signed RS256 JWT and sends
@@ -53,11 +53,10 @@ LAVIAC/
 bun install
 cp example.env .env      # fill in the Zitadel + OIDC vars
 bun run db:generate      # generate the SQLite migrations
-bun run db:push          # apply them to the local DB
-bun run dev              # http://localhost:3000
+bun run dev              # http://localhost:12400
 ```
 
-Generate the typed API client (start the dev server first so the OpenAPI spec is served):
+Generate the typed API client (no dev server needed — the script boots the Hono API in-process):
 
 ```bash
 bun run api-client:generate
@@ -67,12 +66,12 @@ bun run api-client:generate
 
 | Script | Description |
 | --- | --- |
-| `bun run dev` | Nuxt dev server (port 3000). |
+| `bun run dev` | Nuxt dev server on port 12400 (frontend + API). |
 | `bun run build` / `start` | Build and run the production Bun Nitro server. |
-| `bun run typecheck` | `nuxt typecheck` + `tsc` against the typecheck tsconfig. |
+| `bun run typecheck` | `nuxt typecheck` + `tsc` (covers `server/` + `tests/`). |
 | `bun run test` | `bun test`. |
 | `bunx biome check` | Format + lint. |
-| `bun run api-client:generate` | Regenerate `app/api-client/*.gen.ts` from `/api/docs/v1/openapi`. |
+| `bun run api-client:generate` | Regenerate `app/api-client/*.gen.ts` (in-process spec). |
 | `bun run db:generate` / `db:push` / `db:migrate` | Drizzle migration flow. |
 
 ## Environment
@@ -82,7 +81,7 @@ See [`example.env`](example.env). Key variables:
 - `LAVIAC_ZITADEL_URL` — Zitadel base URL (also the OIDC issuer).
 - `LAVIAC_ZITADEL_SYSTEM_USER_ID` + `..._PRIVATE_KEY` (or `..._PRIVATE_KEY_PATH`) — system API user.
 - `LAVIAC_OIDC_CLIENT_ID` / `..._CLIENT_SECRET` / `..._ADMIN_ROLE` — admin OIDC.
-- `LAVIAC_APP_URL` — public URL of the dashboard (used for the OIDC redirect).
+- `LAVIAC_APP_URL` / `NUXT_PUBLIC_APP_URL` — public URL of the dashboard (OIDC redirect, client baseURL).
 
 ## v1 scope
 
