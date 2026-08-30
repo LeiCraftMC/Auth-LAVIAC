@@ -17,7 +17,7 @@ export class APIv1Router extends APIVersionRouter {
 						version: "1.0.0",
 						title: "LAVIAC API",
 						description:
-							"LeiCraft Auth Virtual Instance Admin Console — manage Zitadel virtual instances, their domains, and limits over the Zitadel System API.",
+							"LeiCraft_MC Auth Virtual Instance Admin Console — manage Zitadel virtual instances, their domains, and limits over the Zitadel System API.",
 					},
 					servers: [{ url: "/api/v1" }],
 					security: [{ bearerAuth: [] }],

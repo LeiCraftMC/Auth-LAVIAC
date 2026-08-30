@@ -1,9 +1,9 @@
 # AGENTS.md — operating manual for AI coding agents
 
-LAVIAC (LeiCraft Auth Virtual Instance Admin Console) is the management dashboard for
+LAVIAC (LeiCraft_MC Auth Virtual Instance Admin Console) is the management dashboard for
 Zitadel **virtual instances**. It is a **full-stack Nuxt 4 app** with the Hono backend mounted
 inside Nitro (`server/`). The authoritative house style is the
-[LeiCraftMC Style Guide](../../Style-Guides/AGENTS.md) — read it first.
+[LeiCraft_MC Style Guide](../../Style-Guides/AGENTS.md) — read it first.
 
 ## Shape
 

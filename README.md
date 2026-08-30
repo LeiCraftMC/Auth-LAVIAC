@@ -1,12 +1,12 @@
 # LAVIAC
 
-**LeiCraft Auth Virtual Instance Admin Console** — a management dashboard for
+**LeiCraft_MC Auth Virtual Instance Admin Console** — a management dashboard for
 [Zitadel](https://zitadel.com) **virtual instances**. It exposes the cross-instance control that
 the regular Zitadel admin console does **not** provide: creating, editing, and deleting virtual
 instances, managing their custom domains, and setting limits — over the Zitadel **System API**
 (self-hosted only).
 
-Built on the LeiCraftMC [Style Guide](../../Style-Guides) as a **full-stack Nuxt 4 app** with the
+Built on the LeiCraft_MC [Style Guide](../../Style-Guides) as a **full-stack Nuxt 4 app** with the
 Hono backend mounted inside Nitro (`server/`).
 
 ## Architecture
@@ -45,7 +45,7 @@ LAVIAC/
 - An OIDC client (Authorization Code + PKCE) registered in Zitadel for LAVIAC, with redirect URI
   `${LAVIAC_APP_URL}/api/v1/auth/callback`, and a project role (default `laviac_admin`) granted to
   dashboard admins.
-- [Bun](https://bun.sh) and the LeiCraftMC Style-Guides repo at `../../Style-Guides`.
+- [Bun](https://bun.sh) and the LeiCraft_MC Style-Guides repo at `../../Style-Guides`.
 
 ## Setup
 

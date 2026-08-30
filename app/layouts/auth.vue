@@ -5,7 +5,7 @@
         <ImgAppLogo class="h-10 w-auto" />
         <div class="text-center">
           <h1 class="text-lg font-semibold text-white">LAVIAC</h1>
-          <p class="text-sm text-slate-400">LeiCraft Auth Virtual Instance Admin Console</p>
+          <p class="text-sm text-slate-400">LeiCraft_MC Auth Virtual Instance Admin Console</p>
         </div>
       </div>
       <UCard>
