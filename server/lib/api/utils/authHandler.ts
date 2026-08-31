@@ -1,18 +1,9 @@
-/**
- * AuthHandler — resolves the bearer/cookie session token into an AuthContext.
- *
- * Sessions are created in the OIDC callback route and stored in `DB.Tables.sessions`.
- * Only the SHA-256 hash of the opaque token is persisted (docs/08). The raw token is carried
- * in the `laviac_session_token` cookie, which the frontend `useAPI` composable forwards as
- * `Authorization: Bearer <token>`. Adapted from
- * Style-Guides shared/backend/auth-handler.example.ts (docs/10-auth.md).
- */
 import { createHash, randomBytes } from "node:crypto";
 import { and, eq, lt } from "drizzle-orm";
 import type { Context } from "hono";
 import { getCookie } from "hono/cookie";
 import { DB } from "../../../db";
-import type { OIDCSessionInfo } from "../../../oidc/handler";
+import type { OIDCHandler } from "../../../oidc/handler";
 import { ConfigHandler } from "../../../utils/config";
 import { Logger } from "../../../utils/logger";
 
@@ -101,7 +92,7 @@ export class AuthHandler {
 	}
 
 	/** Create a session row from a successful OIDC callback. Returns the opaque token. */
-	static async createSession(info: OIDCSessionInfo, isAdmin: boolean): Promise<string> {
+	static async createSession(info: OIDCHandler.SessionInfo, isAdmin: boolean): Promise<string> {
 		const config = ConfigHandler.getConfig();
 		const ttlHours = config.LAVIAC_SESSION_TTL_HOURS ? Number(config.LAVIAC_SESSION_TTL_HOURS) : 12;
 		const token = randomBytes(32).toString("hex");

@@ -6,6 +6,7 @@
 	"scripts": {
 		"db:generate": "bun scripts/db-utils && bunx --bun drizzle-kit generate --config=drizzle.config.ts",
         "db:migrate": "bun scripts/db-utils && bunx --bun drizzle-kit migrate --config=drizzle.config.ts",
+        "db:push": "bun scripts/db-utils && bunx --bun drizzle-kit push --config=drizzle.config.ts",
 		"build": "nuxt build",
 		"start": "PORT=12400 bun run .output/server/index.mjs",
 		"dev": "bunx --bun nuxt dev --port 12400",
@@ -35,6 +36,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.0",
 		"@iconify-json/lucide": "^1.2.117",
+		"@types/bun": "^1.3.14",
 		"bun-types": "^1.3.14",
 		"drizzle-kit": "^0.31.10",
 		"typescript": "^6.0.3",

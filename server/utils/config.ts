@@ -104,6 +104,7 @@ export class ConfigHandler {
 		.add("LAVIAC_ZITADEL_URL", false)
 		.add("LAVIAC_ZITADEL_SYSTEM_USER_ID", false)
 		.add("LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH", false)
+		.add("LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY", false)
 
 		.add("LAVIAC_OIDC_CLIENT_ID", false)
 		.add("LAVIAC_OIDC_CLIENT_SECRET", false)
@@ -126,6 +127,23 @@ export class ConfigHandler {
         this.config = this.schema.parse();
         return this.config;
 	}
+
+	/**
+	 * Resolve the Zitadel system-user RSA private key (PEM). An inline key
+	 * (`LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY`) wins; otherwise the key is read from
+	 * `LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH`. Used by server/zitadel/jwt.ts.
+	 */
+	static resolveSystemUserPrivateKey(): string {
+		const config = ConfigHandler.getConfig();
+		if (config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY) {
+			return config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY;
+		}
+		const path = config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH;
+		if (!path) {
+			throw new Error(
+				"LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH (or LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY) must be set.",
+			);
+		}
+		return readFileSync(path, "utf8");
+	}
 }
-
-

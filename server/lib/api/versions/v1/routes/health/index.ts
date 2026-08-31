@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { APIResponse } from "../../../../utils/api-response";
-import { APIResponseSpec, APIRouteSpec } from "../../../../utils/spec-helpers";
+import { APIResponse } from "../../../../utils/api-res";
+import { APIResponseSpec, APIRouteSpec } from "../../../../utils/specHelpers";
 import { DOCS_TAGS } from "../../docs";
 import { HealthModel } from "./model";
 
@@ -13,7 +13,7 @@ app.get(
 		description: "Returns the service health status.",
 		tags: [DOCS_TAGS.SYSTEM],
 		responses: APIResponseSpec.describeBasic(
-			APIResponseSpec.success("Service is healthy", HealthModel.Response),
+			APIResponseSpec.success("Service is healthy", HealthModel.Check.Response),
 		),
 	}),
 	(c) => {

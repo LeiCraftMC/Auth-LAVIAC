@@ -1,5 +1,5 @@
 {
-  "lockfileVersion": 2,
+  "lockfileVersion": 1,
   "configVersion": 1,
   "workspaces": {
     "": {
@@ -23,6 +23,7 @@
       "devDependencies": {
         "@biomejs/biome": "^2.5.0",
         "@iconify-json/lucide": "^1.2.117",
+        "@types/bun": "^1.3.14",
         "bun-types": "^1.3.14",
         "drizzle-kit": "^0.31.10",
         "typescript": "^6.0.3",
@@ -537,6 +538,8 @@
 
     "@tiptap/y-tiptap": ["@tiptap/y-tiptap@3.0.9", "", { "dependencies": { "lib0": "^0.2.100" }, "peerDependencies": { "prosemirror-model": "^1.7.1", "prosemirror-state": "^1.2.3", "prosemirror-view": "^1.9.10", "y-protocols": "^1.0.1", "yjs": "^13.5.38" } }, "sha512-7/El8NQ8R5V5MkdrOUdfj9IgZacpt0H071xNimX7B0AnYiWiKefQnMKd41neQYzo2MOXbWdN3iZ+7Z7BruzOSA=="],
 
+    "@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
+
     "@types/estree": ["@types/estree@1.0.9", "", {}, "sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg=="],
 
     "@types/json-schema": ["@types/json-schema@7.0.15", "", {}, "sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA=="],
@@ -761,7 +764,7 @@
 
     "db0": ["db0@0.3.4", "", { "peerDependencies": { "@electric-sql/pglite": "*", "@libsql/client": "*", "better-sqlite3": "*", "drizzle-orm": "*", "mysql2": "*", "sqlite3": "*" }, "optionalPeers": ["@electric-sql/pglite", "@libsql/client", "better-sqlite3", "drizzle-orm", "mysql2", "sqlite3"] }, "sha512-RiXXi4WaNzPTHEOu8UPQKMooIbqOEyqA1t7Z6MsdxSCeb8iUC9ko3LcmsLmeUt2SM5bctfArZKkRQggKZz7JNw=="],
 
-    "debug": ["debug@4.4.3", "", { "dependencies": { "ms": "^2.1.3" }, "peerDependencies": { "supports-color": "*" }, "optionalPeers": ["supports-color"] }, "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA=="],
+    "debug": ["debug@4.4.3", "", { "dependencies": { "ms": "^2.1.3" } }, "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA=="],
 
     "deepmerge": ["deepmerge@4.3.1", "", {}, "sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A=="],
 

@@ -6,14 +6,14 @@
  *   POST   /_set_primary          → set the primary domain
  */
 import { Hono } from "hono";
-import { validator } from "hono-openapi";
+import { validator as zValidator } from "hono-openapi";
 import { ZitadelClient } from "../../../../../../../zitadel/client";
-import { APIResponse } from "../../../../../utils/api-response";
-import { APIResponseSpec, APIRouteSpec } from "../../../../../utils/spec-helpers";
+import { APIResponse } from "../../../../../utils/api-res";
+import { APIResponseSpec, APIRouteSpec } from "../../../../../utils/specHelpers";
 import { DOCS_TAGS } from "../../../docs";
 import { handleZitadelError } from "../errors";
 import { mapDomain } from "../mapper";
-import { DomainsModel } from "../model";
+import { InstanceDomainsModel } from "./model";
 
 const app = new Hono();
 
@@ -23,7 +23,7 @@ app.get(
 		summary: "List instance domains",
 		tags: [DOCS_TAGS.DOMAINS],
 		responses: APIResponseSpec.describeBasic(
-			APIResponseSpec.success("Domains", DomainsModel.ListResponse),
+			APIResponseSpec.success("Domains", InstanceDomainsModel.List.Response),
 			APIResponseSpec.unauthorized(),
 			APIResponseSpec.forbidden(),
 		),
@@ -41,13 +41,15 @@ app.get(
 
 app.post(
 	"/",
-	validator("json", DomainsModel.AddBody),
+	zValidator("json", InstanceDomainsModel.Add.Body),
 	APIRouteSpec.authenticated({
 		summary: "Add a custom domain",
 		tags: [DOCS_TAGS.DOMAINS],
 		responses: APIResponseSpec.describeWithWrongInputs(
 			APIResponseSpec.createdNoData("Domain added"),
 			APIResponseSpec.conflict("Domain already exists"),
+			APIResponseSpec.unauthorized(),
+			APIResponseSpec.forbidden(),
 		),
 	}),
 	async (c) => {
@@ -64,13 +66,15 @@ app.post(
 
 app.post(
 	"/_set_primary",
-	validator("json", DomainsModel.SetPrimaryBody),
+	zValidator("json", InstanceDomainsModel.SetPrimary.Body),
 	APIRouteSpec.authenticated({
 		summary: "Set the primary domain",
 		tags: [DOCS_TAGS.DOMAINS],
 		responses: APIResponseSpec.describeWithWrongInputs(
 			APIResponseSpec.successNoData("Primary domain updated"),
 			APIResponseSpec.notFound("Domain not found"),
+			APIResponseSpec.unauthorized(),
+			APIResponseSpec.forbidden(),
 		),
 	}),
 	async (c) => {
@@ -92,6 +96,8 @@ app.delete(
 		tags: [DOCS_TAGS.DOMAINS],
 		responses: APIResponseSpec.describeBasic(
 			APIResponseSpec.successNoData("Domain removed"),
+			APIResponseSpec.unauthorized(),
+			APIResponseSpec.forbidden(),
 			APIResponseSpec.notFound("Domain not found"),
 		),
 	}),

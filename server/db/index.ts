@@ -19,7 +19,6 @@ export class DB {
     static async init(
         path: string,
         autoMigrate: boolean = false,
-        configBaseDir: string
     ) {
 		
 		if (path !== ":memory:") {

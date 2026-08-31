@@ -1,7 +1,7 @@
 import { defineNitroPlugin } from "nitropack/runtime";
 import { DB } from "../db";
 import { API } from "../lib/api";
-import { AuthHandler } from "../lib/api/utils/auth-handler";
+import { AuthHandler } from "../lib/api/utils/authHandler";
 import { ConfigHandler } from "../utils/config";
 import { Logger } from "../utils/logger";
 
@@ -15,8 +15,7 @@ export default defineNitroPlugin(async () => {
 
 	await DB.init(
 		config.LAVIAC_DB_PATH ?? "./data/db.sqlite",
-		config.LAVIAC_DB_AUTO_MIGRATE,
-		config.LAVIAC_CONFIG_BASE_DIR ?? "./config"
+		config.LAVIAC_DB_AUTO_MIGRATE ?? true,
 	);
 
 	await AuthHandler.cleanupExpired();

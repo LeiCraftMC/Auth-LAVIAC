@@ -7,8 +7,8 @@
  */
 import { Hono } from "hono";
 import { ZitadelClient } from "../../../../../../zitadel/client";
-import { APIResponse } from "../../../../utils/api-response";
-import { APIResponseSpec, APIRouteSpec } from "../../../../utils/spec-helpers";
+import { APIResponse } from "../../../../utils/api-res";
+import { APIResponseSpec, APIRouteSpec } from "../../../../utils/specHelpers";
 import { requireAdmin } from "../../middleware/auth";
 import { DOCS_TAGS } from "../../docs";
 import { handleZitadelError } from "../instances/errors";
@@ -25,7 +25,7 @@ app.get(
 		description: "Returns whether a domain is already in use by any virtual instance.",
 		tags: [DOCS_TAGS.DOMAINS],
 		responses: APIResponseSpec.describeBasic(
-			APIResponseSpec.success("Domain availability", DomainsModel.ExistsResponse),
+			APIResponseSpec.success("Domain availability", DomainsModel.Exists.Response),
 			APIResponseSpec.unauthorized(),
 			APIResponseSpec.forbidden(),
 		),

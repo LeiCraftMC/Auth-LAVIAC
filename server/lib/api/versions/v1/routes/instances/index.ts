@@ -11,12 +11,12 @@
  * All routes require an admin session (requireAdmin middleware).
  */
 import { Hono } from "hono";
-import { validator } from "hono-openapi";
+import { validator as zValidator } from "hono-openapi";
 import { Audit } from "../../../../../../utils/audit";
 import { ZitadelClient } from "../../../../../../zitadel/client";
-import { APIResponse } from "../../../../utils/api-response";
-import { AuthHandler } from "../../../../utils/auth-handler";
-import { APIResponseSpec, APIRouteSpec } from "../../../../utils/spec-helpers";
+import { APIResponse } from "../../../../utils/api-res";
+import { AuthHandler } from "../../../../utils/authHandler";
+import { APIResponseSpec, APIRouteSpec } from "../../../../utils/specHelpers";
 import { requireAdmin } from "../../middleware/auth";
 import { DOCS_TAGS } from "../../docs";
 import { instanceDomainsRouter } from "./domains";
@@ -38,7 +38,7 @@ app.get(
 		description: "Lists all virtual instances on the Zitadel deployment (System API).",
 		tags: [DOCS_TAGS.INSTANCES],
 		responses: APIResponseSpec.describeBasic(
-			APIResponseSpec.success("Instances", InstancesModel.ListResponse),
+			APIResponseSpec.success("Instances", InstancesModel.List.Response),
 			APIResponseSpec.unauthorized(),
 			APIResponseSpec.forbidden(),
 		),
@@ -55,15 +55,17 @@ app.get(
 
 app.post(
 	"/instances",
-	validator("json", InstancesModel.CreateBody),
+	zValidator("json", InstancesModel.Create.Body),
 	APIRouteSpec.authenticated({
 		summary: "Create a virtual instance",
 		description:
 			"Creates a new Zitadel instance with its first org and an owner (human or machine). This is the only operation that requires the System API create endpoint.",
 		tags: [DOCS_TAGS.INSTANCES],
 		responses: APIResponseSpec.describeWithWrongInputs(
-			APIResponseSpec.created("Instance created", InstancesModel.CreateResponse),
+			APIResponseSpec.created("Instance created", InstancesModel.Create.Response),
 			APIResponseSpec.conflict("Instance or domain already exists"),
+			APIResponseSpec.unauthorized(),
+			APIResponseSpec.forbidden(),
 		),
 	}),
 	async (c) => {
@@ -94,7 +96,7 @@ app.get(
 		summary: "Get a virtual instance",
 		tags: [DOCS_TAGS.INSTANCES],
 		responses: APIResponseSpec.describeBasic(
-			APIResponseSpec.success("Instance", InstancesModel.Response),
+			APIResponseSpec.success("Instance", InstancesModel.Get.Response),
 			APIResponseSpec.unauthorized(),
 			APIResponseSpec.forbidden(),
 			APIResponseSpec.notFound("Instance not found"),
@@ -113,14 +115,16 @@ app.get(
 
 app.put(
 	"/instances/:id",
-	validator("json", InstancesModel.UpdateBody),
+	zValidator("json", InstancesModel.Update.Body),
 	APIRouteSpec.authenticated({
 		summary: "Rename a virtual instance",
 		description: "Updates the instance name. Only the name is mutable via the System API.",
 		tags: [DOCS_TAGS.INSTANCES],
 		responses: APIResponseSpec.describeWithWrongInputs(
-			APIResponseSpec.success("Instance updated", InstancesModel.Response),
+			APIResponseSpec.success("Instance updated", InstancesModel.Get.Response),
 			APIResponseSpec.notFound("Instance not found"),
+			APIResponseSpec.unauthorized(),
+			APIResponseSpec.forbidden(),
 		),
 	}),
 	async (c) => {

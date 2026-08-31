@@ -16,26 +16,6 @@ export const zGetIndexResponse = z.object({
 });
 
 /**
- * Redirect to Zitadel
- */
-export const zGetAuthLoginResponse = z.object({
-    success: z.literal(true),
-    code: z.literal(200),
-    message: z.literal('Redirect to Zitadel'),
-    data: z.null()
-});
-
-/**
- * Session created
- */
-export const zGetAuthCallbackResponse = z.object({
-    success: z.literal(true),
-    code: z.literal(200),
-    message: z.literal('Session created'),
-    data: z.null()
-});
-
-/**
  * Logout successful
  */
 export const zPostAuthLogoutResponse = z.object({

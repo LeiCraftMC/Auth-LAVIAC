@@ -14,9 +14,9 @@ import * as oidc from "openid-client";
 import { OIDCHandler } from "../../../../../../oidc/handler";
 import { ConfigHandler } from "../../../../../../utils/config";
 import { Logger } from "../../../../../../utils/logger";
-import { APIResponse } from "../../../../utils/api-response";
-import { AuthHandler, SESSION_COOKIE } from "../../../../utils/auth-handler";
-import { APIResponseSpec, APIRouteSpec } from "../../../../utils/spec-helpers";
+import { APIResponse } from "../../../../utils/api-res";
+import { AuthHandler, SESSION_COOKIE } from "../../../../utils/authHandler";
+import { APIResponseSpec, APIRouteSpec } from "../../../../utils/specHelpers";
 import { DOCS_TAGS } from "../../docs";
 import { AuthModel } from "./model";
 
@@ -54,7 +54,7 @@ app.get(
 		summary: "Begin OIDC login",
 		description: "Redirects to the Zitadel authorization endpoint (Authorization Code + PKCE).",
 		tags: [DOCS_TAGS.AUTH],
-		responses: APIResponseSpec.describeBasic(APIResponseSpec.successNoData("Redirect to Zitadel")),
+		responses: { 302: { description: "Redirect to the Zitadel authorization endpoint." } },
 	}),
 	async (c) => {
 		const state = oidc.randomState();
@@ -85,7 +85,7 @@ app.get(
 		description:
 			"Exchanges the authorization code for tokens, checks the admin project role, creates a session, and redirects to the app.",
 		tags: [DOCS_TAGS.AUTH],
-		responses: APIResponseSpec.describeBasic(APIResponseSpec.successNoData("Session created")),
+		responses: { 302: { description: "Redirect to the app; session cookie set on success." } },
 	}),
 	async (c) => {
 		const state = getCookie(c, OAUTH_STATE_COOKIE) ?? "";
@@ -156,7 +156,7 @@ app.get(
 		description: "Returns the authenticated admin user, or an error if not signed in.",
 		tags: [DOCS_TAGS.AUTH],
 		responses: APIResponseSpec.describeBasic(
-			APIResponseSpec.success("Current user", AuthModel.Me),
+			APIResponseSpec.success("Current user", AuthModel.Me.Response),
 			APIResponseSpec.unauthorized("Not authenticated"),
 		),
 	}),

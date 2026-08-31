@@ -12,22 +12,13 @@ import * as oidc from "openid-client";
 import { ConfigHandler } from "../utils/config";
 import { Logger } from "../utils/logger";
 
-export interface OIDCSessionInfo {
-	sub: string;
-	accessToken: string;
-	idToken?: string;
-	refreshToken?: string;
-	claims: Record<string, unknown>;
-	userinfo: Record<string, unknown>;
-}
-
 const ZITADEL_ROLES_CLAIM = "urn:zitadel:iam:org:project:roles";
 
-let config: oidc.Configuration | null = null;
-
 export class OIDCHandler {
+	private static config: oidc.Configuration | null = null;
+
 	static async ensureConfig(): Promise<oidc.Configuration> {
-		if (config) return config;
+		if (OIDCHandler.config) return OIDCHandler.config;
 		const c = ConfigHandler.getConfig();
 		const issuer = (c.LAVIAC_ZITADEL_URL ?? "").replace(/\/$/, "");
 		const clientId = c.LAVIAC_OIDC_CLIENT_ID;
@@ -36,9 +27,9 @@ export class OIDCHandler {
 			throw new Error("LAVIAC_OIDC_CLIENT_ID and LAVIAC_ZITADEL_URL must be set for OIDC.");
 		}
 		Logger.log(`Discovering Zitadel OIDC issuer at ${issuer}...`);
-		config = await oidc.discovery(new URL(issuer), clientId, clientSecret);
+		OIDCHandler.config = await oidc.discovery(new URL(issuer), clientId, clientSecret);
 		Logger.log("Zitadel OIDC discovery complete.");
-		return config;
+		return OIDCHandler.config;
 	}
 
 	static async getAuthorizationUrl(params: {
@@ -64,7 +55,7 @@ export class OIDCHandler {
 	static async handleCallback(
 		callbackUrl: string,
 		checks: { expectedState: string; expectedNonce: string; pkceCodeVerifier: string },
-	): Promise<OIDCSessionInfo> {
+	): Promise<OIDCHandler.SessionInfo> {
 		const cfg = await OIDCHandler.ensureConfig();
 		const tokens = await oidc.authorizationCodeGrant(cfg, new URL(callbackUrl), {
 			expectedState: checks.expectedState,
@@ -114,10 +105,21 @@ export class OIDCHandler {
 	}
 
 	/** True if the user carries the configured Zitadel project role (admin). */
-	static isAdmin(info: OIDCSessionInfo, adminRole: string): boolean {
+	static isAdmin(info: OIDCHandler.SessionInfo, adminRole: string): boolean {
 		const roles = (info.userinfo[ZITADEL_ROLES_CLAIM] ??
 			info.claims[ZITADEL_ROLES_CLAIM] ??
 			{}) as Record<string, unknown>;
 		return Object.hasOwn(roles, adminRole);
 	}
+}
+
+export namespace OIDCHandler {
+	export type SessionInfo = {
+		sub: string;
+		accessToken: string;
+		idToken?: string;
+		refreshToken?: string;
+		claims: Record<string, unknown>;
+		userinfo: Record<string, unknown>;
+	};
 }

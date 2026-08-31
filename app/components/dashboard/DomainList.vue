@@ -1,22 +1,27 @@
 <script setup lang="ts">
-import type { InstanceDomain } from "~/types";
+import type { InstanceDomain } from "~/utils/types";
 
 const props = defineProps<{ instanceId: string }>();
 const emit = defineEmits<(e: "changed") => void>();
 
 const toast = useToast();
 const newDomain = ref("");
+const loadError = ref("");
 
-const { data, pending, refresh } = await useLazyAsyncData<{
-	domains: InstanceDomain[] | null;
-	error: string;
-}>(`domains-${props.instanceId}`, async () => {
-	const result = await useAPI((api) =>
-		api.listInstanceDomains({ path: { instanceId: props.instanceId } }),
-	);
-	if (!result.success) return { domains: null, error: result.message };
-	return { domains: result.data as InstanceDomain[], error: "" };
-});
+const { data, loading, refresh } = await useAPILazyAsyncData<InstanceDomain[] | null>(
+	`domains-${props.instanceId}`,
+	async () => {
+		const result = await useAPI((api) =>
+			api.listInstanceDomains({ path: { instanceId: props.instanceId } }),
+		);
+		if (!result.success) {
+			loadError.value = result.message;
+			return null;
+		}
+		loadError.value = "";
+		return result.data;
+	},
+);
 
 async function add() {
 	if (!newDomain.value) return;
@@ -66,10 +71,10 @@ async function remove(domain: string) {
       <UButton icon="i-lucide-plus" @click="add">Add</UButton>
     </div>
 
-    <div v-if="data?.error" class="text-sm text-red-400">{{ data.error }}</div>
+    <div v-if="loadError" class="text-sm text-red-400">{{ loadError }}</div>
 
     <ul class="divide-y divide-slate-800 rounded-md border border-slate-800">
-      <li v-for="d in data?.domains" :key="d.domain" class="flex items-center justify-between px-3 py-2">
+      <li v-for="d in data ?? []" :key="d.domain" class="flex items-center justify-between px-3 py-2">
         <div class="flex items-center gap-2">
           <UIcon name="i-lucide-globe" class="text-slate-500" />
           <span class="text-slate-200">{{ d.domain }}</span>
@@ -83,7 +88,7 @@ async function remove(domain: string) {
           <UButton v-if="!d.generated" size="sm" variant="ghost" color="error" icon="i-lucide-trash-2" @click="remove(d.domain)" />
         </div>
       </li>
-      <li v-if="!data?.domains?.length && !pending" class="px-3 py-6 text-center text-sm text-slate-500">
+      <li v-if="!data?.length && !loading" class="px-3 py-6 text-center text-sm text-slate-500">
         No domains.
       </li>
     </ul>

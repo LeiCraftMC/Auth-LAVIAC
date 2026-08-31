@@ -35,40 +35,12 @@ export type GetAuthLoginData = {
     url: '/auth/login';
 };
 
-export type GetAuthLoginResponses = {
-    /**
-     * Redirect to Zitadel
-     */
-    200: {
-        success: true;
-        code: 200;
-        message: 'Redirect to Zitadel';
-        data: null;
-    };
-};
-
-export type GetAuthLoginResponse = GetAuthLoginResponses[keyof GetAuthLoginResponses];
-
 export type GetAuthCallbackData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/auth/callback';
 };
-
-export type GetAuthCallbackResponses = {
-    /**
-     * Session created
-     */
-    200: {
-        success: true;
-        code: 200;
-        message: 'Session created';
-        data: null;
-    };
-};
-
-export type GetAuthCallbackResponse = GetAuthCallbackResponses[keyof GetAuthCallbackResponses];
 
 export type PostAuthLogoutData = {
     body?: never;
@@ -231,6 +203,22 @@ export type PostInstancesErrors = {
         success: false;
         code: 400;
         message: 'Bad Request: Syntax or validation error in request';
+    };
+    /**
+     * Unauthorized: Authentication is required and has failed or has not yet been provided
+     */
+    401: {
+        success: false;
+        code: 401;
+        message: 'Unauthorized: Authentication is required and has failed or has not yet been provided';
+    };
+    /**
+     * Forbidden: You do not have permission to access the requested resource
+     */
+    403: {
+        success: false;
+        code: 403;
+        message: 'Forbidden: You do not have permission to access the requested resource';
     };
     /**
      * Instance or domain already exists
@@ -399,6 +387,22 @@ export type PutInstancesByIdErrors = {
         message: 'Bad Request: Syntax or validation error in request';
     };
     /**
+     * Unauthorized: Authentication is required and has failed or has not yet been provided
+     */
+    401: {
+        success: false;
+        code: 401;
+        message: 'Unauthorized: Authentication is required and has failed or has not yet been provided';
+    };
+    /**
+     * Forbidden: You do not have permission to access the requested resource
+     */
+    403: {
+        success: false;
+        code: 403;
+        message: 'Forbidden: You do not have permission to access the requested resource';
+    };
+    /**
      * Instance not found
      */
     404: {
@@ -505,6 +509,22 @@ export type PostInstancesByInstanceIdDomainsErrors = {
         message: 'Bad Request: Syntax or validation error in request';
     };
     /**
+     * Unauthorized: Authentication is required and has failed or has not yet been provided
+     */
+    401: {
+        success: false;
+        code: 401;
+        message: 'Unauthorized: Authentication is required and has failed or has not yet been provided';
+    };
+    /**
+     * Forbidden: You do not have permission to access the requested resource
+     */
+    403: {
+        success: false;
+        code: 403;
+        message: 'Forbidden: You do not have permission to access the requested resource';
+    };
+    /**
      * Domain already exists
      */
     409: {
@@ -551,6 +571,22 @@ export type PostInstancesByInstanceIdDomainsSetPrimaryErrors = {
         message: 'Bad Request: Syntax or validation error in request';
     };
     /**
+     * Unauthorized: Authentication is required and has failed or has not yet been provided
+     */
+    401: {
+        success: false;
+        code: 401;
+        message: 'Unauthorized: Authentication is required and has failed or has not yet been provided';
+    };
+    /**
+     * Forbidden: You do not have permission to access the requested resource
+     */
+    403: {
+        success: false;
+        code: 403;
+        message: 'Forbidden: You do not have permission to access the requested resource';
+    };
+    /**
      * Domain not found
      */
     404: {
@@ -588,6 +624,22 @@ export type DeleteInstancesByInstanceIdDomainsByDomainData = {
 
 export type DeleteInstancesByInstanceIdDomainsByDomainErrors = {
     /**
+     * Unauthorized: Authentication is required and has failed or has not yet been provided
+     */
+    401: {
+        success: false;
+        code: 401;
+        message: 'Unauthorized: Authentication is required and has failed or has not yet been provided';
+    };
+    /**
+     * Forbidden: You do not have permission to access the requested resource
+     */
+    403: {
+        success: false;
+        code: 403;
+        message: 'Forbidden: You do not have permission to access the requested resource';
+    };
+    /**
      * Domain not found
      */
     404: {
@@ -623,6 +675,22 @@ export type DeleteInstancesByInstanceIdLimitsData = {
 };
 
 export type DeleteInstancesByInstanceIdLimitsErrors = {
+    /**
+     * Unauthorized: Authentication is required and has failed or has not yet been provided
+     */
+    401: {
+        success: false;
+        code: 401;
+        message: 'Unauthorized: Authentication is required and has failed or has not yet been provided';
+    };
+    /**
+     * Forbidden: You do not have permission to access the requested resource
+     */
+    403: {
+        success: false;
+        code: 403;
+        message: 'Forbidden: You do not have permission to access the requested resource';
+    };
     /**
      * Instance not found
      */
@@ -669,6 +737,22 @@ export type PutInstancesByInstanceIdLimitsErrors = {
         success: false;
         code: 400;
         message: 'Bad Request: Syntax or validation error in request';
+    };
+    /**
+     * Unauthorized: Authentication is required and has failed or has not yet been provided
+     */
+    401: {
+        success: false;
+        code: 401;
+        message: 'Unauthorized: Authentication is required and has failed or has not yet been provided';
+    };
+    /**
+     * Forbidden: You do not have permission to access the requested resource
+     */
+    403: {
+        success: false;
+        code: 403;
+        message: 'Forbidden: You do not have permission to access the requested resource';
     };
     /**
      * Instance not found

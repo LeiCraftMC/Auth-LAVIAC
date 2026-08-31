@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CreateInstanceBody, CreateInstanceResult } from "~/types";
+import type { CreateInstanceBody, CreateInstanceResult } from "~/utils/types";
 
 useSeoMeta({ title: "Create instance — LAVIAC" });
 

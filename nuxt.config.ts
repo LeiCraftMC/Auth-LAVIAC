@@ -20,7 +20,7 @@ export default defineNuxtConfig({
 	},
 	runtimeConfig: {
 		public: {
-			appUrl: process.env.LCCFWSP_APP_URL  || "http://localhost:12400",
+			appUrl: process.env.LAVIAC_APP_URL || "http://localhost:12400",
 		},
 	},
 	routeRules: {

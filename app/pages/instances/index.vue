@@ -1,21 +1,24 @@
 <script setup lang="ts">
-import type { Instance } from "~/types";
-import { primaryDomain } from "~/types";
+import type { Instance } from "~/utils/types";
+import { primaryDomain } from "~/utils/types";
 
 useSeoMeta({ title: "Instances — LAVIAC" });
 
 const toast = useToast();
+const loadError = ref("");
 
-const { data, pending, refresh } = await useLazyAsyncData<{
-	instances: Instance[] | null;
-	error: string;
-}>("instances-list", async () => {
-	const result = await useAPI((api) => api.listInstances({}));
-	if (!result.success) {
-		return { instances: null, error: result.message };
-	}
-	return { instances: result.data as Instance[], error: "" };
-});
+const { data, loading, refresh } = await useAPILazyAsyncData<Instance[] | null>(
+	"instances-list",
+	async () => {
+		const result = await useAPI((api) => api.listInstances({}));
+		if (!result.success) {
+			loadError.value = result.message;
+			return null;
+		}
+		loadError.value = "";
+		return result.data;
+	},
+);
 
 async function deleteInstance(instance: Instance) {
 	const result = await useAPI((api) => api.deleteInstance({ path: { id: instance.id } }));
@@ -36,15 +39,15 @@ async function deleteInstance(instance: Instance) {
         <p class="text-sm text-slate-400">Zitadel instances managed via the System API.</p>
       </div>
       <div class="flex gap-2">
-        <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" :loading="pending" @click="refresh">
+        <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" :loading="loading" @click="refresh">
           Refresh
         </UButton>
         <UButton icon="i-lucide-plus" to="/instances/create">New instance</UButton>
       </div>
     </div>
 
-    <div v-if="data?.error" class="rounded-md border border-red-800 bg-red-950/40 p-3 text-sm text-red-300">
-      {{ data.error }}
+    <div v-if="loadError" class="rounded-md border border-red-800 bg-red-950/40 p-3 text-sm text-red-300">
+      {{ loadError }}
     </div>
 
     <UCard :ui="{ body: 'p-0' }">
@@ -60,7 +63,7 @@ async function deleteInstance(instance: Instance) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="inst in data?.instances" :key="inst.id" class="border-b border-slate-800/60 hover:bg-slate-900/40">
+          <tr v-for="inst in data ?? []" :key="inst.id" class="border-b border-slate-800/60 hover:bg-slate-900/40">
             <td class="px-4 py-3">
               <NuxtLink :to="`/instances/${inst.id}`" class="font-medium text-white hover:text-sky-300">
                 {{ inst.name }}
@@ -80,7 +83,7 @@ async function deleteInstance(instance: Instance) {
               />
             </td>
           </tr>
-          <tr v-if="!data?.instances?.length && !pending">
+          <tr v-if="!data?.length && !loading">
             <td colspan="6" class="px-4 py-10 text-center text-slate-500">No instances found.</td>
           </tr>
         </tbody>

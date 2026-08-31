@@ -1,4 +1,5 @@
 import { DB } from "../db";
+import { Logger } from "./logger";
 
 export class Audit {
 

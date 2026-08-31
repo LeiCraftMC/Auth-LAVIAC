@@ -21,95 +21,83 @@ export const Instance = z.object({
 export type Instance = z.infer<typeof Instance>;
 
 export namespace InstancesModel {
-	export const ListResponse = z.array(Instance);
-	export type ListResponse = z.infer<typeof ListResponse>;
+	export namespace List {
+		export const Response = z.array(Instance);
+		export type Response = z.infer<typeof Response>;
+	}
 
-	export const Response = Instance;
-	export type Response = z.infer<typeof Response>;
+	export namespace Get {
+		export const Response = Instance;
+		export type Response = z.infer<typeof Response>;
+	}
 
-	// --- Create ----------------------------------------------------------------
+	export namespace Create {
+		export const HumanOwner = z.object({
+			userName: z.string().min(1),
+			email: z.object({
+				email: z.string().email(),
+				isEmailVerified: z.boolean().optional(),
+			}),
+			profile: z.object({
+				firstName: z.string().min(1),
+				lastName: z.string().min(1),
+				preferredLanguage: z.string().optional(),
+			}),
+			password: z.object({
+				password: z.string().min(1),
+				passwordChangeRequired: z.boolean().optional(),
+			}),
+		});
+		export type HumanOwner = z.infer<typeof HumanOwner>;
 
-	export const HumanOwner = z.object({
-		userName: z.string().min(1),
-		email: z.object({
-			email: z.string().email(),
-			isEmailVerified: z.boolean().optional(),
-		}),
-		profile: z.object({
-			firstName: z.string().min(1),
-			lastName: z.string().min(1),
-			preferredLanguage: z.string().optional(),
-		}),
-		password: z.object({
-			password: z.string().min(1),
-			passwordChangeRequired: z.boolean().optional(),
-		}),
-	});
+		export const MachineOwner = z.object({
+			userName: z.string().min(1),
+			name: z.string().min(1),
+			personalAccessToken: z
+				.object({
+					expirationDate: z.string().optional(),
+				})
+				.optional(),
+			machineKey: z
+				.object({
+					type: z.string(),
+					expirationDate: z.string().optional(),
+				})
+				.optional(),
+		});
+		export type MachineOwner = z.infer<typeof MachineOwner>;
 
-	export const MachineOwner = z.object({
-		userName: z.string().min(1),
-		name: z.string().min(1),
-		personalAccessToken: z
+		export const Body = z
 			.object({
-				expirationDate: z.string().optional(),
+				instanceName: z.string().min(1),
+				firstOrgName: z.string().optional(),
+				customDomain: z.string().optional(),
+				defaultLanguage: z.string().optional(),
+				human: HumanOwner.optional(),
+				machine: MachineOwner.optional(),
 			})
-			.optional(),
-		machineKey: z
-			.object({
-				type: z.string(),
-				expirationDate: z.string().optional(),
-			})
-			.optional(),
-	});
+			.refine(
+				(data) => (data.human ? 1 : 0) + (data.machine ? 1 : 0) === 1,
+				"Exactly one of `human` or `machine` must be set (the instance owner).",
+			);
+		export type Body = z.infer<typeof Body>;
 
-	export const CreateBody = z
-		.object({
+		export const Response = z.object({
+			instanceId: z.string(),
+			pat: z.string().optional(),
+			machineKey: z.string().optional(),
+		});
+		export type Response = z.infer<typeof Response>;
+	}
+
+	export namespace Update {
+		export const Body = z.object({
 			instanceName: z.string().min(1),
-			firstOrgName: z.string().optional(),
-			customDomain: z.string().optional(),
-			defaultLanguage: z.string().optional(),
-			human: HumanOwner.optional(),
-			machine: MachineOwner.optional(),
-		})
-		.refine(
-			(data) => (data.human ? 1 : 0) + (data.machine ? 1 : 0) === 1,
-			"Exactly one of `human` or `machine` must be set (the instance owner).",
-		);
-	export type CreateBody = z.infer<typeof CreateBody>;
-
-	export const CreateResponse = z.object({
-		instanceId: z.string(),
-		pat: z.string().optional(),
-		machineKey: z.string().optional(),
-	});
-	export type CreateResponse = z.infer<typeof CreateResponse>;
-
-	// --- Update ----------------------------------------------------------------
-
-	export const UpdateBody = z.object({
-		instanceName: z.string().min(1),
-	});
-	export type UpdateBody = z.infer<typeof UpdateBody>;
+		});
+		export type Body = z.infer<typeof Body>;
+	}
 }
 
-export namespace DomainsModel {
-	export const Domain = InstanceDomain;
-	export type Domain = z.infer<typeof Domain>;
-
-	export const ListResponse = z.array(InstanceDomain);
-	export type ListResponse = z.infer<typeof ListResponse>;
-
-	export const AddBody = z.object({ domain: z.string().min(1) });
-	export type AddBody = z.infer<typeof AddBody>;
-
-	export const SetPrimaryBody = z.object({ domain: z.string().min(1) });
-	export type SetPrimaryBody = z.infer<typeof SetPrimaryBody>;
-}
-
-export namespace LimitsModel {
-	export const SetBody = z.object({
-		auditLogRetention: z.string().optional(),
-		block: z.boolean().nullable().optional(),
-	});
-	export type SetBody = z.infer<typeof SetBody>;
-}
+// Per-instance domain and limits schemas live in their own route folders:
+//   instances/domains/model.ts → InstanceDomainsModel
+//   instances/limits/model.ts  → InstanceLimitsModel

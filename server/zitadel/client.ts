@@ -9,7 +9,7 @@
  */
 import { ConfigHandler } from "../utils/config";
 import { Logger } from "../utils/logger";
-import { getSystemUserJwt } from "./jwt";
+import { ZitadelSystemJwt } from "./jwt";
 import type {
 	ZitadelCreateInstanceRequest,
 	ZitadelCreateInstanceResponse,
@@ -45,7 +45,7 @@ export class ZitadelClient {
 
 	private static async request<T>(method: Method, path: string, body?: unknown): Promise<T> {
 		const url = `${ZitadelClient.baseUrl()}${path}`;
-		const token = await getSystemUserJwt();
+		const token = await ZitadelSystemJwt.get();
 
 		Logger.debug(`Zitadel ${method} ${path}`);
 		const res = await fetch(url, {
@@ -60,13 +60,21 @@ export class ZitadelClient {
 
 		// Some delete/reset endpoints return an empty body on success.
 		const text = await res.text();
-		const json = text ? (JSON.parse(text) as unknown) : null;
+		let json: unknown = null;
+		if (text) {
+			try {
+				json = JSON.parse(text);
+			} catch {
+				// non-JSON error body (e.g. an HTML gateway page) — fall through to the
+				// !res.ok branch, which synthesizes a message from method/path.
+			}
+		}
 
 		if (!res.ok) {
 			const message =
-				(json && typeof json === "object" && "message" in json
+				json && typeof json === "object" && "message" in json
 					? String((json as { message: unknown }).message)
-					: `Zitadel ${method} ${path} failed`) ?? `Zitadel ${method} ${path} failed`;
+					: `Zitadel ${method} ${path} failed`;
 			throw new ZitadelApiError(res.status, message, json);
 		}
 

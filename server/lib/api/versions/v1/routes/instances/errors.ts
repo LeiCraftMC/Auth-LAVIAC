@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { ZitadelApiError } from "../../../../../../zitadel/client";
-import { APIResponse } from "../../../../utils/api-response";
+import { APIResponse } from "../../../../utils/api-res";
 
 /** Map a Zitadel upstream error to the LAVIAC envelope. */
 export function handleZitadelError(c: Context, err: unknown): Response {

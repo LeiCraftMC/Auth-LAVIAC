@@ -2,7 +2,7 @@ import { Logger } from "../../utils/logger";
 import { Hono } from "hono";
 import { prettyJSON } from "hono/pretty-json";
 import { HTTPException } from 'hono/http-exception'
-import type { APIVersionRouter } from "./utils/api-version-router";
+import type { APIVersionRouter } from "./utils/apiVersionRouter";
 import { APIv1Router } from "./versions/v1";
 import { openAPIRouteHandler } from "hono-openapi";
 import { Scalar } from "@scalar/hono-api-reference";

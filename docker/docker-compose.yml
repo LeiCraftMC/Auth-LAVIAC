@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  laviac:
+    image: gcr.leicraftmc.de/leicraftmc/laviac:latest
+    container_name: laviac
+    ports:
+      - "12400:12400"
+    environment:
+      - LAVIAC_LOG_LEVEL=info
+      - LAVIAC_APP_URL=https://laviac.leicraftmc.de
+      - LAVIAC_ZITADEL_URL=https://auth.leicraftmc.de
+      - LAVIAC_ZITADEL_SYSTEM_USER_ID=laviac-system-user
+      - LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH=/opt/laviac/config/system-user.pem
+      - LAVIAC_OIDC_CLIENT_ID=laviac
+      - LAVIAC_OIDC_CLIENT_SECRET=
+      - LAVIAC_OIDC_ADMIN_ROLE=laviac_admin
+    volumes:
+      - /opt/laviac/config:/opt/laviac/config
+      - /opt/laviac/data:/opt/laviac/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:12400/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s

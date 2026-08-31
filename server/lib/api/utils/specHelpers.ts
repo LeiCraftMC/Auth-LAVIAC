@@ -5,7 +5,7 @@
 import type { MiddlewareHandler } from "hono";
 import { type DescribeRouteOptions, describeRoute, resolver } from "hono-openapi";
 import { z } from "zod";
-import { APIResponse } from "./api-response";
+import { APIResponse } from "./api-res";
 
 export class APIRouteSpec {
 	static custom(spec: APIResponseSpec.Types.DescribeRouteOptionsWithResponses): MiddlewareHandler {

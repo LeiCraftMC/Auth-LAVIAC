@@ -9,15 +9,21 @@ export namespace UseAPITypes {
 
 	export type DefaultReturn<TReturn> = TReturn;
 
-	export type UseAPIReturnType<TReturn> = Promise<
-		| TReturn
-		| {
-				readonly success: false;
-				readonly code: 500;
-				readonly message: string;
-				readonly data: null;
-		  }
-	>;
+	/** The LAVIAC `{ success, code, message, data }` envelope, discriminated on `success`. */
+	export type Envelope<TData> =
+		| { success: true; code: number; message: string; data: TData }
+		| { success: false; code: number; message: string; data: null };
+
+	/**
+	 * Extract the envelope payload type from a `@hey-api/client-fetch` RequestResult.
+	 * client-fetch resolves to `{ data?: <envelope>, error?: <envelope>, ... }`; the
+	 * envelope's `data` field is the actual payload.
+	 */
+	export type EnvelopeData<W> = W extends { data?: infer Env }
+		? NonNullable<Env> extends { data?: infer D }
+			? NonNullable<D>
+			: unknown
+		: unknown;
 
 	export type AsyncDataReturn<TReturn> = {
 		data: Ref<DefaultReturn<TReturn>>;
@@ -123,11 +129,11 @@ class LazyAsyncDataRequestWrapper<TReturn> {
 	}
 }
 
-export async function useAPI(
-	handler: (api: UseAPITypes.APIClient) => any,
+export async function useAPI<TReturn>(
+	handler: (api: UseAPITypes.APIClient) => Promise<TReturn>,
 	disableAuthRedirect = false,
-): Promise<any> {
-	// `@hey-api/client-fetch` returns `{ data, error, request?, response? }`.
+): Promise<UseAPITypes.Envelope<UseAPITypes.EnvelopeData<TReturn>>> {
+	// `@hey-api/client-fetch` resolves to `{ data, error, request?, response? }`.
 	// The LAVIAC backend always returns the `{ success, code, message, data }` envelope,
 	// so the envelope is in `raw.data` on success and `raw.error` on failure — unwrap it.
 	const unwrap = (raw: any): any => raw?.data ?? raw?.error ?? raw;

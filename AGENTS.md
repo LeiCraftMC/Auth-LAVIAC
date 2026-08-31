@@ -57,7 +57,7 @@ a `server/plugins/startup.ts` Nitro plugin boots config → DB → API. See Styl
 
 - Backend: `server/lib/api/versions/v1/routes/{health,auth,instances,domains}/`.
 - Zitadel client: `server/zitadel/{client.ts,jwt.ts,types.ts}`.
-- OIDC/session: `server/oidc/handler.ts`, `server/lib/api/utils/auth-handler.ts`.
+- OIDC/session: `server/oidc/handler.ts`, `server/lib/api/utils/authHandler.ts`.
 - DB/audit: `server/db/{index.ts,schema.ts,utils.ts}`, `server/utils/audit.ts`.
 - Frontend pages: `app/pages/{auth/login.vue, instances/}`. Components: `app/components/{layout,dashboard}/`.
 - Config: `server/utils/config.ts` (all `LAVIAC_*` env vars; `example.env` documents them).

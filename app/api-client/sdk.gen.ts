@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteInstancesByIdData, DeleteInstancesByIdErrors, DeleteInstancesByIdResponses, DeleteInstancesByInstanceIdDomainsByDomainData, DeleteInstancesByInstanceIdDomainsByDomainErrors, DeleteInstancesByInstanceIdDomainsByDomainResponses, DeleteInstancesByInstanceIdLimitsData, DeleteInstancesByInstanceIdLimitsErrors, DeleteInstancesByInstanceIdLimitsResponses, GetAuthCallbackData, GetAuthCallbackResponses, GetAuthLoginData, GetAuthLoginResponses, GetAuthMeData, GetAuthMeErrors, GetAuthMeResponses, GetDomainsByDomainExistsData, GetDomainsByDomainExistsErrors, GetDomainsByDomainExistsResponses, GetIndexData, GetIndexResponses, GetInstancesByIdData, GetInstancesByIdErrors, GetInstancesByIdResponses, GetInstancesByInstanceIdDomainsData, GetInstancesByInstanceIdDomainsErrors, GetInstancesByInstanceIdDomainsResponses, GetInstancesData, GetInstancesErrors, GetInstancesResponses, PostAuthLogoutData, PostAuthLogoutResponses, PostInstancesByInstanceIdDomainsData, PostInstancesByInstanceIdDomainsErrors, PostInstancesByInstanceIdDomainsResponses, PostInstancesByInstanceIdDomainsSetPrimaryData, PostInstancesByInstanceIdDomainsSetPrimaryErrors, PostInstancesByInstanceIdDomainsSetPrimaryResponses, PostInstancesData, PostInstancesErrors, PostInstancesResponses, PutInstancesByIdData, PutInstancesByIdErrors, PutInstancesByIdResponses, PutInstancesByInstanceIdLimitsData, PutInstancesByInstanceIdLimitsErrors, PutInstancesByInstanceIdLimitsResponses } from './types.gen';
+import type { DeleteInstancesByIdData, DeleteInstancesByIdErrors, DeleteInstancesByIdResponses, DeleteInstancesByInstanceIdDomainsByDomainData, DeleteInstancesByInstanceIdDomainsByDomainErrors, DeleteInstancesByInstanceIdDomainsByDomainResponses, DeleteInstancesByInstanceIdLimitsData, DeleteInstancesByInstanceIdLimitsErrors, DeleteInstancesByInstanceIdLimitsResponses, GetAuthCallbackData, GetAuthLoginData, GetAuthMeData, GetAuthMeErrors, GetAuthMeResponses, GetDomainsByDomainExistsData, GetDomainsByDomainExistsErrors, GetDomainsByDomainExistsResponses, GetIndexData, GetIndexResponses, GetInstancesByIdData, GetInstancesByIdErrors, GetInstancesByIdResponses, GetInstancesByInstanceIdDomainsData, GetInstancesByInstanceIdDomainsErrors, GetInstancesByInstanceIdDomainsResponses, GetInstancesData, GetInstancesErrors, GetInstancesResponses, PostAuthLogoutData, PostAuthLogoutResponses, PostInstancesByInstanceIdDomainsData, PostInstancesByInstanceIdDomainsErrors, PostInstancesByInstanceIdDomainsResponses, PostInstancesByInstanceIdDomainsSetPrimaryData, PostInstancesByInstanceIdDomainsSetPrimaryErrors, PostInstancesByInstanceIdDomainsSetPrimaryResponses, PostInstancesData, PostInstancesErrors, PostInstancesResponses, PutInstancesByIdData, PutInstancesByIdErrors, PutInstancesByIdResponses, PutInstancesByInstanceIdLimitsData, PutInstancesByInstanceIdLimitsErrors, PutInstancesByInstanceIdLimitsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -30,14 +30,14 @@ export const getIndex = <ThrowOnError extends boolean = false>(options?: Options
  *
  * Redirects to the Zitadel authorization endpoint (Authorization Code + PKCE).
  */
-export const getAuthLogin = <ThrowOnError extends boolean = false>(options?: Options<GetAuthLoginData, ThrowOnError>): RequestResult<GetAuthLoginResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetAuthLoginResponses, unknown, ThrowOnError>({ url: '/auth/login', ...options });
+export const getAuthLogin = <ThrowOnError extends boolean = false>(options?: Options<GetAuthLoginData, ThrowOnError>): RequestResult<unknown, unknown, ThrowOnError> => (options?.client ?? client).get<unknown, unknown, ThrowOnError>({ url: '/auth/login', ...options });
 
 /**
  * OIDC callback
  *
  * Exchanges the authorization code for tokens, checks the admin project role, creates a session, and redirects to the app.
  */
-export const getAuthCallback = <ThrowOnError extends boolean = false>(options?: Options<GetAuthCallbackData, ThrowOnError>): RequestResult<GetAuthCallbackResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetAuthCallbackResponses, unknown, ThrowOnError>({ url: '/auth/callback', ...options });
+export const getAuthCallback = <ThrowOnError extends boolean = false>(options?: Options<GetAuthCallbackData, ThrowOnError>): RequestResult<unknown, unknown, ThrowOnError> => (options?.client ?? client).get<unknown, unknown, ThrowOnError>({ url: '/auth/callback', ...options });
 
 /**
  * Log out

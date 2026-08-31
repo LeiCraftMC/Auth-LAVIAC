@@ -4,19 +4,19 @@
  *   DELETE /   → reset limits to defaults
  */
 import { Hono } from "hono";
-import { validator } from "hono-openapi";
+import { validator as zValidator } from "hono-openapi";
 import { ZitadelClient } from "../../../../../../../zitadel/client";
-import { APIResponse } from "../../../../../utils/api-response";
-import { APIResponseSpec, APIRouteSpec } from "../../../../../utils/spec-helpers";
+import { APIResponse } from "../../../../../utils/api-res";
+import { APIResponseSpec, APIRouteSpec } from "../../../../../utils/specHelpers";
 import { DOCS_TAGS } from "../../../docs";
 import { handleZitadelError } from "../errors";
-import { LimitsModel } from "../model";
+import { InstanceLimitsModel } from "./model";
 
 const app = new Hono();
 
 app.put(
 	"/",
-	validator("json", LimitsModel.SetBody),
+	zValidator("json", InstanceLimitsModel.Set.Body),
 	APIRouteSpec.authenticated({
 		summary: "Set instance limits",
 		description:
@@ -25,6 +25,8 @@ app.put(
 		responses: APIResponseSpec.describeWithWrongInputs(
 			APIResponseSpec.successNoData("Limits updated"),
 			APIResponseSpec.notFound("Instance not found"),
+			APIResponseSpec.unauthorized(),
+			APIResponseSpec.forbidden(),
 		),
 	}),
 	async (c) => {
@@ -46,6 +48,8 @@ app.delete(
 		tags: [DOCS_TAGS.LIMITS],
 		responses: APIResponseSpec.describeBasic(
 			APIResponseSpec.successNoData("Limits reset"),
+			APIResponseSpec.unauthorized(),
+			APIResponseSpec.forbidden(),
 			APIResponseSpec.notFound("Instance not found"),
 		),
 	}),

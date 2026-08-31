@@ -10,7 +10,6 @@ import { z } from "zod";
  */
 export namespace UserAccountSettings {
 	export const Roles = ["admin", "member"] as const;
-	export type Role = (typeof Roles)[number];
-
-	export const RolesSchema = z.enum(Roles);
+	export const Role = z.enum(Roles);
+	export type Role = z.infer<typeof Role>;
 }
