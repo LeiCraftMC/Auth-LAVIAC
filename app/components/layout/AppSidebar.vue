@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { NavigationMenuItem } from '@nuxt/ui';
+
 const items = [
 	{ label: "Instances", icon: "i-lucide-server", to: "/instances" },
 	{ label: "New instance", icon: "i-lucide-plus-circle", to: "/instances/create" },

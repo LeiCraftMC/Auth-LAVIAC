@@ -24,9 +24,7 @@ export default defineNuxtConfig({
 		},
 	},
 	routeRules: {
-		"/instances/**": { ssr: false },
-		"/auth/**": { ssr: false },
-		"/**": { ssr: true },
+		"/**": { ssr: false }
 	},
 
 	telemetry: false

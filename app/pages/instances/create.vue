@@ -51,7 +51,7 @@ async function submit() {
 	}
 
 	submitting.value = true;
-	const result = await useAPI((api) => api.createInstance({ body }));
+	const result = await useAPI((api) => api.postInstances({ body }));
 	submitting.value = false;
 
 	if (!result.success) {

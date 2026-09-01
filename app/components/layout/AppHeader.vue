@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useUserStore } from '~/composables/stores/useUserStore';
+
 const store = useUserStore();
 const user = await store.use();
 

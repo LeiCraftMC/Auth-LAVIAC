@@ -10,7 +10,7 @@ const loadError = ref("");
 const { data, loading, refresh } = await useAPILazyAsyncData<Instance[] | null>(
 	"instances-list",
 	async () => {
-		const result = await useAPI((api) => api.listInstances({}));
+		const result = await useAPI((api) => api.getInstances({}));
 		if (!result.success) {
 			loadError.value = result.message;
 			return null;
@@ -21,7 +21,7 @@ const { data, loading, refresh } = await useAPILazyAsyncData<Instance[] | null>(
 );
 
 async function deleteInstance(instance: Instance) {
-	const result = await useAPI((api) => api.deleteInstance({ path: { id: instance.id } }));
+	const result = await useAPI((api) => api.deleteInstancesById({ path: { id: instance.id } }));
 	if (!result.success) {
 		toast.add({ title: "Delete failed", description: result.message, color: "error" });
 		return;

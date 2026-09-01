@@ -14,7 +14,7 @@ const loadError = ref("");
 const { data, loading, refresh } = await useAPILazyAsyncData<Instance | null>(
 	`instance-${id}`,
 	async () => {
-		const result = await useAPI((api) => api.getInstance({ path: { id } }));
+		const result = await useAPI((api) => api.getInstancesById({ path: { id } }));
 		if (!result.success) {
 			loadError.value = result.message;
 			return null;

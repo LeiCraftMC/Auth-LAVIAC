@@ -15,7 +15,7 @@ const blockOptions = [
 async function save() {
 	saving.value = true;
 	const result = await useAPI((api) =>
-		api.setInstanceLimits({
+		api.putInstancesByInstanceIdLimits({
 			path: { instanceId: props.instanceId },
 			body: {
 				auditLogRetention: auditLogRetention.value || undefined,
@@ -33,7 +33,7 @@ async function save() {
 
 async function reset() {
 	const result = await useAPI((api) =>
-		api.resetInstanceLimits({ path: { instanceId: props.instanceId } }),
+		api.deleteInstancesByInstanceIdLimits({ path: { instanceId: props.instanceId } }),
 	);
 	if (!result.success) {
 		toast.add({ title: "Reset failed", description: result.message, color: "error" });

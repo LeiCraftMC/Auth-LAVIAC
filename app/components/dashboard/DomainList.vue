@@ -12,7 +12,7 @@ const { data, loading, refresh } = await useAPILazyAsyncData<InstanceDomain[] | 
 	`domains-${props.instanceId}`,
 	async () => {
 		const result = await useAPI((api) =>
-			api.listInstanceDomains({ path: { instanceId: props.instanceId } }),
+			api.getInstancesByInstanceIdDomains({ path: { instanceId: props.instanceId } }),
 		);
 		if (!result.success) {
 			loadError.value = result.message;
@@ -26,7 +26,7 @@ const { data, loading, refresh } = await useAPILazyAsyncData<InstanceDomain[] | 
 async function add() {
 	if (!newDomain.value) return;
 	const result = await useAPI((api) =>
-		api.addInstanceDomain({
+		api.postInstancesByInstanceIdDomains({
 			path: { instanceId: props.instanceId },
 			body: { domain: newDomain.value },
 		}),
@@ -42,7 +42,7 @@ async function add() {
 
 async function setPrimary(domain: string) {
 	const result = await useAPI((api) =>
-		api.setPrimaryInstanceDomain({ path: { instanceId: props.instanceId }, body: { domain } }),
+		api.postInstancesByInstanceIdDomainsSetPrimary({ path: { instanceId: props.instanceId }, body: { domain } }),
 	);
 	if (!result.success) {
 		toast.add({ title: "Failed", description: result.message, color: "error" });
@@ -53,7 +53,7 @@ async function setPrimary(domain: string) {
 
 async function remove(domain: string) {
 	const result = await useAPI((api) =>
-		api.removeInstanceDomain({ path: { instanceId: props.instanceId, domain } }),
+		api.deleteInstancesByInstanceIdDomainsByDomain({ path: { instanceId: props.instanceId, domain } }),
 	);
 	if (!result.success) {
 		toast.add({ title: "Remove failed", description: result.message, color: "error" });
