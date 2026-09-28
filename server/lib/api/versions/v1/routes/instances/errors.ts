@@ -1,9 +1,13 @@
 import type { Context } from "hono";
 import { ZitadelApiError } from "../../../../../zitadel/client";
 import { APIResponse } from "../../../../utils/api-res";
+import { Logger } from "../../../../../utils/logger";
 
 /** Map a Zitadel upstream error to the LAVIAC envelope. */
 export function handleZitadelError(c: Context, err: unknown): Response {
+
+	Logger.error("Zitadel API error:", err);
+
 	if (err instanceof ZitadelApiError) {
 		if (err.status === 404) return APIResponse.notFound(c, err.message);
 		if (err.status === 409) return APIResponse.conflict(c, err.message);
