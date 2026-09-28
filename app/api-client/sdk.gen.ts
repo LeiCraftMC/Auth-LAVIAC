@@ -35,7 +35,7 @@ export const getAuthLogin = <ThrowOnError extends boolean = false>(options?: Opt
 /**
  * Static fallback login
  *
- * Authenticates the env-configured static admin account (LAVIAC_STATIC_AUTH_USERNAME / LAVIAC_STATIC_AUTH_PASSWORD_HASH). Only available when a password hash is configured; rate-limited.
+ * Authenticates the env-configured static admin account (LAVIAC_STATIC_AUTH_USERNAME / LAVIAC_STATIC_AUTH_PASSWORD_HASH — required at boot). Rate-limited.
  */
 export const postAuthLogin = <ThrowOnError extends boolean = false>(options: Options<PostAuthLoginData, ThrowOnError>): RequestResult<PostAuthLoginResponses, PostAuthLoginErrors, ThrowOnError> => (options.client ?? client).post<PostAuthLoginResponses, PostAuthLoginErrors, ThrowOnError>({
     url: '/auth/login',

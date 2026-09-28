@@ -30,8 +30,9 @@ a `server/plugins/startup.ts` Nitro plugin boots config → DB → API. See Styl
    `openid-client`) is the primary login; the guide's docs/10 covers opaque bearer sessions only,
    and LAVIAC additionally is an OIDC client of the master Zitadel instance. On top of that, a
    static admin account (`LAVIAC_STATIC_AUTH_USERNAME`, default `admin` +
-   `LAVIAC_STATIC_AUTH_PASSWORD_HASH`, a `Bun.password` argon2id hash) provides a fallback login
-   alongside OIDC — the guide's own bootstrap is a DB-seeded initial admin with a reset-token file
+   `LAVIAC_STATIC_AUTH_PASSWORD_HASH`, a `Bun.password` argon2id hash) is REQUIRED at boot —
+   the schema gives the hash no default — and always shows on the login page alongside the OIDC
+   button. The guide's own bootstrap is a DB-seeded initial admin with a reset-token file
    (docs/08), which LAVIAC deliberately does not use because admins normally come from Zitadel.
    Sessions otherwise follow docs/10 exactly: opaque `laviac_sess_<id>:<base>` tokens (id = row
    primary key, base stored only as a `Bun.password` hash, 7-day default TTL, purged on access),
@@ -44,7 +45,10 @@ a `server/plugins/startup.ts` Nitro plugin boots config → DB → API. See Styl
    `server/lib/api/utils/shared-models/accountData.ts`).
 3. **Zitadel System API auth = system-user JWT.** A self-signed RS256 JWT (RSA keypair registered
    in Zitadel `SystemAPIUsers` runtime settings) is sent directly as `Bearer` to
-   `/system/v1/*`. This is the only System API auth method (self-hosted only). See
+   `/system/v1/*`. This is the only System API auth method (self-hosted only). The System API
+   base URL (`LAVIAC_ZITADEL_SYSTEM_API_URL`, also the JWT audience) is a SEPARATE setting from
+   the OIDC auth URL (`LAVIAC_ZITADEL_AUTH_URL`) — the System API may live on a different
+   (e.g. local/internal) endpoint than the public auth issuer. See
    `server/lib/zitadel/jwt.ts` and
    <https://zitadel.com/docs/guides/integrate/zitadel-apis/access-zitadel-system-api>.
 4. **DB layer is dialect-neutral.** `server/lib/db/index.ts` exposes `DB.instance()` and

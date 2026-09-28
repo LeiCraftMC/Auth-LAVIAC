@@ -122,7 +122,10 @@ export class ConfigHandler {
 
 		APP_URL: CS.string(),
 
-		ZITADEL_URL: CS.string().optional(),
+		// The public auth URL (OIDC issuer) and the System API base URL are separate
+		// settings — the System API may live on a different (e.g. local/internal) endpoint.
+		ZITADEL_AUTH_URL: CS.string().optional(),
+		ZITADEL_SYSTEM_API_URL: CS.string().optional(),
 		ZITADEL_SYSTEM_USER_ID: CS.string().optional(),
 		ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH: CS.string().optional(),
 		ZITADEL_SYSTEM_USER_PRIVATE_KEY: CS.string().optional(),
@@ -135,9 +138,10 @@ export class ConfigHandler {
 		// Session lifetime in hours (docs/10-auth.md default: 7 days).
 		SESSION_TTL_HOURS: CS.number().optional(),
 
-		// Static fallback login (alongside OIDC) — enabled only when the hash is set.
+		// Static fallback login (alongside OIDC) — REQUIRED at boot so the dashboard is
+		// always reachable, even without Zitadel OIDC.
 		STATIC_AUTH_USERNAME: CS.string().default("admin"),
-		STATIC_AUTH_PASSWORD_HASH: CS.string().optional(),
+		STATIC_AUTH_PASSWORD_HASH: CS.string(),
 	});
 
 	private static config: ParsedConfig | null = null;

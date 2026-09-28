@@ -30,12 +30,13 @@ LAVIAC/
 └── openapi-ts.config.ts         # frontend client generation (spec written by the script)
 ```
 
-- **Admin login**: Zitadel OIDC with an optional **static fallback**. Via OIDC, LAVIAC is a
+- **Admin login**: Zitadel OIDC with a **required static fallback**. Via OIDC, LAVIAC is a
   confidential client; the backend exchanges the code, reads the
   `urn:zitadel:iam:org:project:roles` claim, and admits users with the configured admin role. The
   static fallback (`LAVIAC_STATIC_AUTH_USERNAME`, default `admin`, + `LAVIAC_STATIC_AUTH_PASSWORD_HASH`,
-  a `Bun.password`/argon2id hash — generate with `bun run hash-password`) is enabled whenever its
-  hash is set. Both methods create the same opaque session token (`laviac_sess_<id>:<base>`): the
+  a `Bun.password`/argon2id hash — generate with `bun run hash-password`) is required at boot and
+  always available on the login page. Both methods create the same opaque session token
+  (`laviac_sess_<id>:<base>`): the
   base is stored only as a `Bun.password` hash in SQLite, the token travels in the
   `laviac_session_token` cookie and as `Authorization: Bearer`.
 - **System API auth**: a **system API user** — an RSA keypair whose public key is registered in
@@ -85,10 +86,11 @@ bun run api-client:generate
 
 See [`example.env`](example.env). Key variables:
 
-- `LAVIAC_ZITADEL_URL` — Zitadel base URL (also the OIDC issuer).
+- `LAVIAC_ZITADEL_AUTH_URL` — public Zitadel auth URL (the OIDC issuer).
+- `LAVIAC_ZITADEL_SYSTEM_API_URL` — Zitadel System API base URL (system-user JWT audience); may differ from the auth URL (e.g. a local endpoint).
 - `LAVIAC_ZITADEL_SYSTEM_USER_ID` + `..._PRIVATE_KEY` (or `..._PRIVATE_KEY_PATH`) — system API user.
 - `LAVIAC_OIDC_CLIENT_ID` / `..._CLIENT_SECRET` / `..._ADMIN_ROLE` — admin OIDC.
-- `LAVIAC_STATIC_AUTH_USERNAME` / `..._PASSWORD_HASH` — static fallback login (enabled when the hash is set).
+- `LAVIAC_STATIC_AUTH_USERNAME` / `..._PASSWORD_HASH` — static fallback login; the hash is **required** at boot.
 - `LAVIAC_APP_URL` / `NUXT_PUBLIC_APP_URL` — public URL of the dashboard (OIDC redirect, client baseURL).
 
 ## v1 scope

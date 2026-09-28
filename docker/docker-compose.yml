@@ -9,12 +9,16 @@ services:
     environment:
       - LAVIAC_LOG_LEVEL=info
       - LAVIAC_APP_URL=https://laviac.leicraftmc.de
-      - LAVIAC_ZITADEL_URL=https://auth.leicraftmc.de
+      - LAVIAC_ZITADEL_AUTH_URL=https://auth.leicraftmc.de
+      - LAVIAC_ZITADEL_SYSTEM_API_URL=https://auth.leicraftmc.de
       - LAVIAC_ZITADEL_SYSTEM_USER_ID=laviac-system-user
       - LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH=/opt/laviac/config/system-user.pem
       - LAVIAC_OIDC_CLIENT_ID=laviac
       - LAVIAC_OIDC_CLIENT_SECRET=
       - LAVIAC_OIDC_ADMIN_ROLE=laviac_admin
+      - LAVIAC_STATIC_AUTH_USERNAME=admin
+      # Generate with: bun run hash-password <password>
+      - LAVIAC_STATIC_AUTH_PASSWORD_HASH=
     volumes:
       - /opt/laviac/config:/opt/laviac/config
       - /opt/laviac/data:/opt/laviac/data

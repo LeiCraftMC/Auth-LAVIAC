@@ -255,7 +255,7 @@ router.post(
 	APIRouteSpec.unauthenticated({
 		summary: "Static fallback login",
 		description:
-			"Authenticates the env-configured static admin account (LAVIAC_STATIC_AUTH_USERNAME / LAVIAC_STATIC_AUTH_PASSWORD_HASH). Only available when a password hash is configured; rate-limited.",
+			"Authenticates the env-configured static admin account (LAVIAC_STATIC_AUTH_USERNAME / LAVIAC_STATIC_AUTH_PASSWORD_HASH — required at boot). Rate-limited.",
 		tags: [DOCS_TAGS.AUTH],
 
 		responses: APIResponseSpec.describeWithWrongInputs(
@@ -342,7 +342,7 @@ router.get(
 	(c) => {
 		const config = ConfigHandler.getConfig();
 		return APIResponse.success(c, "Authentication methods", {
-			oidc: Boolean(config?.ZITADEL_URL && config?.OIDC_CLIENT_ID && config?.OIDC_CLIENT_SECRET),
+			oidc: Boolean(config?.ZITADEL_AUTH_URL && config?.OIDC_CLIENT_ID && config?.OIDC_CLIENT_SECRET),
 			static: Boolean(config?.STATIC_AUTH_PASSWORD_HASH),
 		} satisfies AuthModel.Methods.Response);
 	},

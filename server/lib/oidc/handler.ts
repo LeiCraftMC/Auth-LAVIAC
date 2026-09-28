@@ -20,11 +20,11 @@ export class OIDCHandler {
 	static async ensureConfig(): Promise<oidc.Configuration> {
 		if (OIDCHandler.config) return OIDCHandler.config;
 		const c = ConfigHandler.getConfig();
-		const issuer = (c?.ZITADEL_URL ?? "").replace(/\/$/, "");
+		const issuer = (c?.ZITADEL_AUTH_URL ?? "").replace(/\/$/, "");
 		const clientId = c?.OIDC_CLIENT_ID;
 		const clientSecret = c?.OIDC_CLIENT_SECRET;
 		if (!clientId || !issuer) {
-			throw new Error("LAVIAC_OIDC_CLIENT_ID and LAVIAC_ZITADEL_URL must be set for OIDC.");
+			throw new Error("LAVIAC_OIDC_CLIENT_ID and LAVIAC_ZITADEL_AUTH_URL must be set for OIDC.");
 		}
 		Logger.log(`Discovering Zitadel OIDC issuer at ${issuer}...`);
 		OIDCHandler.config = await oidc.discovery(new URL(issuer), clientId, clientSecret);

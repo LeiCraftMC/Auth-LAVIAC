@@ -1,7 +1,7 @@
 /**
  * ZitadelClient — typed wrapper over the Zitadel v1 System API (REST gateway).
  *
- * All endpoints live under `${LAVIAC_ZITADEL_URL}/system/v1/...` and are authenticated
+ * All endpoints live under `${LAVIAC_ZITADEL_SYSTEM_API_URL}/system/v1/...` and are authenticated
  * with the system-user JWT (see ./jwt.ts). This covers the cross-instance control the
  * regular Zitadel admin console does NOT expose: instance CRUD, custom domains, limits.
  *
@@ -40,7 +40,7 @@ type Method = "GET" | "POST" | "PUT" | "DELETE";
 
 export class ZitadelClient {
 	private static baseUrl(): string {
-		return (ConfigHandler.getConfig()?.ZITADEL_URL ?? "").replace(/\/$/, "");
+		return (ConfigHandler.getConfig()?.ZITADEL_SYSTEM_API_URL ?? "").replace(/\/$/, "");
 	}
 
 	private static async request<T>(method: Method, path: string, body?: unknown): Promise<T> {

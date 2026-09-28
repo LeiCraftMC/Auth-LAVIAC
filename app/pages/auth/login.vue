@@ -33,10 +33,11 @@ const errorText = computed(() => {
 });
 
 // Which login methods are configured? Unauthenticated discovery endpoint.
-// On a transient failure, assume the primary (OIDC) method is available.
+// The static login is required at boot; on a transient methods-fetch failure assume it
+// is available (and that the primary OIDC method is too).
 const methods = await useAPI((api) => api.getAuthMethods({}), true);
 const oidcEnabled = methods.success ? methods.data.oidc : true;
-const staticEnabled = methods.success && methods.data.static;
+const staticEnabled = methods.success ? methods.data.static : true;
 
 const fields: AuthFormField[] = [
 	{
