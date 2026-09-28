@@ -15,6 +15,37 @@ export const zGetIndexResponse = z.object({
     })
 });
 
+export const zPostAuthLoginBody = z.object({
+    username: z.string().min(1),
+    password: z.string().min(1)
+});
+
+/**
+ * Login successful
+ */
+export const zPostAuthLoginResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Login successful'),
+    data: z.object({
+        token: z.string(),
+        expires_at: z.number()
+    })
+});
+
+/**
+ * Authentication methods
+ */
+export const zGetAuthMethodsResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Authentication methods'),
+    data: z.object({
+        oidc: z.boolean(),
+        static: z.boolean()
+    })
+});
+
 /**
  * Logout successful
  */
@@ -36,7 +67,8 @@ export const zGetAuthMeResponse = z.object({
         sub: z.string(),
         email: z.string().nullable(),
         name: z.string().nullable(),
-        isAdmin: z.boolean()
+        role: z.enum(['admin', 'member']),
+        login_method: z.enum(['oidc', 'static'])
     })
 });
 

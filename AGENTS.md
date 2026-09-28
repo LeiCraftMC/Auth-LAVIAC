@@ -26,11 +26,18 @@ a `server/plugins/startup.ts` Nitro plugin boots config → DB → API. See Styl
 
 ## LAVIAC specifics (divergences from the guide, recorded here)
 
-1. **Admin auth = Zitadel OIDC** (Authorization Code + PKCE) via `openid-client`. The guide's
-   docs/10 covers opaque bearer sessions only; LAVIAC is an OIDC client of the master Zitadel
-   instance. The raw `laviac_session_token` cookie is forwarded as `Authorization: Bearer` by
-   `useAPI`. Only the **SHA-256 hash** of the token is stored in `DB.Tables.sessions`
-   (`hashed_token`); the lookup hashes the incoming token on every request.
+1. **Admin auth = Zitadel OIDC + env-based static fallback.** OIDC (Authorization Code + PKCE via
+   `openid-client`) is the primary login; the guide's docs/10 covers opaque bearer sessions only,
+   and LAVIAC additionally is an OIDC client of the master Zitadel instance. On top of that, a
+   static admin account (`LAVIAC_STATIC_AUTH_USERNAME`, default `admin` +
+   `LAVIAC_STATIC_AUTH_PASSWORD_HASH`, a `Bun.password` argon2id hash) provides a fallback login
+   alongside OIDC — the guide's own bootstrap is a DB-seeded initial admin with a reset-token file
+   (docs/08), which LAVIAC deliberately does not use because admins normally come from Zitadel.
+   Sessions otherwise follow docs/10 exactly: opaque `laviac_sess_<id>:<base>` tokens (id = row
+   primary key, base stored only as a `Bun.password` hash, 7-day default TTL, purged on access),
+   timing-safe dummy-hash verify + in-memory rate limiter on login (docs/10 hardening), and the
+   `laviac_session_token` cookie — except `secure` is derived from `LAVIAC_APP_URL` instead of
+   hardcoded `true`, so plain-http local development still works.
 2. **Admin authorization = Zitadel project role.** The role claim
    `urn:zitadel:iam:org:project:roles` must contain the configured role
    (`LAVIAC_OIDC_ADMIN_ROLE`, default `laviac_admin`). The cached `user_role` column in
@@ -39,11 +46,11 @@ a `server/plugins/startup.ts` Nitro plugin boots config → DB → API. See Styl
 3. **Zitadel System API auth = system-user JWT.** A self-signed RS256 JWT (RSA keypair registered
    in Zitadel `SystemAPIUsers` runtime settings) is sent directly as `Bearer` to
    `/system/v1/*`. This is the only System API auth method (self-hosted only). See
-   `server/zitadel/jwt.ts` and
+   `server/lib/zitadel/jwt.ts` and
    <https://zitadel.com/docs/guides/integrate/zitadel-apis/access-zitadel-system-api>.
-4. **DB layer is dialect-neutral.** `server/db/index.ts` exposes `DB.instance()` and
+4. **DB layer is dialect-neutral.** `server/lib/db/index.ts` exposes `DB.instance()` and
    `DB.Tables` / `DB.Models`. No initial-admin bootstrap here; admins are created in Zitadel and
-   admitted by the OIDC role. The `metadata` KV table is also standard.
+   admitted by the OIDC role (or the static fallback). The `metadata` KV table is also standard.
 5. **Generated API client uses `@hey-api/client-fetch`.** The style guide's docs/06 recommends
    `@hey-api/client-nuxt`, but `client-nuxt` v0.2.1 produces internal type errors under
    Windows/Bun/vue-tsc 3.3 (duplicate `AsyncData`/`NuxtError` symbols from `nuxt/app` vs `#app`).
@@ -52,15 +59,20 @@ a `server/plugins/startup.ts` Nitro plugin boots config → DB → API. See Styl
 6. **v1 scope = cross-instance control**: instance CRUD, custom domains, limits/quota over the
    v1 System API. Per-instance Admin-API settings (login policy, branding, password complexity)
    are **Phase 2** (needs a second service account + instance-context routing).
+7. **SSR is globally disabled** (`routeRules: { "/**": { ssr: false } }`). docs/06 keeps SSR for
+   public pages; LAVIAC has none — every route sits behind the auth guard — so the whole app
+   renders client-side.
 
 ## Key locations
 
 - Backend: `server/lib/api/versions/v1/routes/{health,auth,instances,domains}/`.
-- Zitadel client: `server/zitadel/{client.ts,jwt.ts,types.ts}`.
-- OIDC/session: `server/oidc/handler.ts`, `server/lib/api/utils/authHandler.ts`.
-- DB/audit: `server/db/{index.ts,schema.ts,utils.ts}`, `server/utils/audit.ts`.
+- Zitadel client: `server/lib/zitadel/{client.ts,jwt.ts,types.ts}`.
+- OIDC/session: `server/lib/oidc/handler.ts`, `server/lib/api/utils/authHandler.ts`
+  (`AuthUtils` / `SessionHandler` / `AuthHandler`), `server/lib/api/utils/rateLimiter.ts`.
+- DB/audit: `server/lib/db/{index.ts,schema.ts,utils.ts}`, `server/lib/utils/audit.ts`.
 - Frontend pages: `app/pages/{auth/login.vue, instances/}`. Components: `app/components/{layout,dashboard}/`.
-- Config: `server/utils/config.ts` (all `LAVIAC_*` env vars; `example.env` documents them).
+- Config: `server/lib/utils/config.ts` (all `LAVIAC_*` env vars; `example.env` documents them);
+  project constants incl. the `laviac_` token prefix: `server/lib/utils/constants.ts`.
 
 ## Before declaring done
 

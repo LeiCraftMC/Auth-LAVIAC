@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { ZitadelApiError } from "../../../../../../zitadel/client";
+import { ZitadelApiError } from "../../../../../zitadel/client";
 import { APIResponse } from "../../../../utils/api-res";
 
 /** Map a Zitadel upstream error to the LAVIAC envelope. */

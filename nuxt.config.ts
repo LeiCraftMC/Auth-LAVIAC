@@ -1,6 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-
 	compatibilityDate: "2026-08-20",
 	devtools: { enabled: true },
 	modules: ["@nuxt/ui"],
@@ -10,22 +9,31 @@ export default defineNuxtConfig({
 		fallback: "dark",
 		classSuffix: "",
 	},
-	
+
 	ssr: true,
 	css: ["~/assets/css/main.css"],
 	nitro: {
-		preset: "bun",
-		// Keep the native SQLite binding out of the bundle.
 		rollupConfig: { external: ["bun:sqlite"] },
+
+		// server/ runs on Bun (bun:sqlite, Bun.password, …).
+		typescript: {
+			tsConfig: { compilerOptions: { types: ["bun-types"] } },
+		},
+
+		esbuild: {
+			options: {
+				target: "esnext",
+			},
+		},
 	},
 	runtimeConfig: {
 		public: {
-			appUrl: process.env.LAVIAC_APP_URL || "http://localhost:12400",
+			appUrl: process.env.LAVIAC_APP_URL || "http://localhost:12191",
 		},
 	},
 	routeRules: {
-		"/**": { ssr: false }
+		"/**": { ssr: false },
 	},
 
-	telemetry: false
+	telemetry: false,
 });

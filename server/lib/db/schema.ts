@@ -1,16 +1,21 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { UserAccountSettings } from "../lib/api/utils/shared-models/accountData";
+import { UserAccountSettings } from "../api/utils/shared-models/accountData";
 import { SQLUtils } from "./utils";
 
 /** @deprecated Use DB.Tables.sessions */
 export const sessions = sqliteTable("sessions", {
-	id: SQLUtils.primaryKeyIntAutoIncrement("id"),
-	hashed_token: text().notNull().unique(),
-	zitadel_sub: text().notNull(),
-	zitadel_email: text(),
-	zitadel_name: text(),
+	// Opaque bearer-token id (32 random bytes hex) — the row primary key, so the
+	// lookup on every request is O(1). See docs/10-auth.md.
+	id: text().primaryKey(),
+	// Bun.password hash of the token base — the base is never persisted in plaintext.
+	hashed_token: text().notNull(),
+	// Zitadel `sub` (OIDC login) or the configured username (static fallback login).
+	user_sub: text().notNull(),
+	user_email: text(),
+	user_name: text(),
 	// cached for fast permission checks without a join; admins are re-checked at login
 	user_role: text({ enum: UserAccountSettings.Roles }).default("member").notNull(),
+	login_method: text({ enum: UserAccountSettings.LoginMethods }).notNull(),
 	created_at: SQLUtils.getCreatedAtColumn(),
 	expires_at: integer().notNull(),
 });

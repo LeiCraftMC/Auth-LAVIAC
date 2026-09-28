@@ -9,11 +9,11 @@ WORKDIR /opt/laviac
 # needed at runtime. The CI pipeline runs `bun run build` before `docker build`.
 COPY .output /opt/laviac/app
 
-EXPOSE 12400/tcp
+EXPOSE 12191/tcp
 
 ENV NITRO_ENV=production
 ENV NITRO_HOST=::
-ENV NITRO_PORT=12400
+ENV NITRO_PORT=12191
 
 ENV LAVIAC_DB_PATH=/opt/laviac/data/db.sqlite
 ENV LAVIAC_DB_AUTO_MIGRATE=true

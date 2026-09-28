@@ -10,15 +10,17 @@
 		"lint": "bunx --bun biome lint",
 		"typecheck": "bunx --bun nuxt typecheck && bunx --bun tsc -p ./tsconfig/tsconfig.typecheck.json && echo 'Typecheck passed!'",
 		"test": "bun test",
-		"db:generate": "bun scripts/db-utils && bunx --bun drizzle-kit generate --config=drizzle.config.ts",
-        "db:migrate": "bun scripts/db-utils && bunx --bun drizzle-kit migrate --config=drizzle.config.ts",
+		"db:generate": "bun scripts/db-utils && bunx --bun drizzle-kit generate --config=drizzle/configs/drizzle.config.ts",
+		"db:migrate": "bun scripts/db-utils && bunx --bun drizzle-kit migrate --config=drizzle/configs/drizzle.config.ts",
+		"db:push": "bun scripts/db-utils && bunx --bun drizzle-kit push --config=drizzle/configs/drizzle.config.ts",
+		"hash-password": "bun scripts/hash-password.ts",
 		"api-client:generate": "bun scripts/api-client-generate.ts",
-		"dev": "bunx --bun nuxt dev --port 12400",
+		"dev": "bunx --bun nuxt dev --port 12191",
 		"generate": "bunx --bun nuxt generate",
-        "preview": "bunx --bun nuxt preview",
+		"preview": "bunx --bun nuxt preview",
 		"postinstall": "bunx --bun nuxt prepare",
-		"build": "nuxt build",
-		"start": "PORT=12400 bun run .output/server/index.mjs"
+		"build": "nuxt build --preset bun",
+		"start": "PORT=12191 bun run .output/server/index.mjs"
 	},
 	"dependencies": {
 		"@hono/standard-validator": "^0.3.0",

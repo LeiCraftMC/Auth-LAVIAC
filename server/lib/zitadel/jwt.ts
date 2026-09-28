@@ -31,7 +31,10 @@ export class ZitadelSystemJwt {
 	static async get(): Promise<string> {
 		const nowSeconds = Math.floor(Date.now() / 1000);
 
-		if (ZitadelSystemJwt.cachedJwt && ZitadelSystemJwt.cachedExp - nowSeconds > REFRESH_MARGIN_SECONDS) {
+		if (
+			ZitadelSystemJwt.cachedJwt &&
+			ZitadelSystemJwt.cachedExp - nowSeconds > REFRESH_MARGIN_SECONDS
+		) {
 			return ZitadelSystemJwt.cachedJwt;
 		}
 

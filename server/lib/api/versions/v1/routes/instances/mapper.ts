@@ -1,7 +1,7 @@
 /**
  * Mappers — Zitadel v1 System API shapes → LAVIAC-facing envelope shapes.
  */
-import type { ZitadelDomain, ZitadelInstance } from "../../../../../../zitadel/types";
+import type { ZitadelDomain, ZitadelInstance } from "../../../../../zitadel/types";
 import type { Instance, InstanceDomain } from "./model";
 
 export function mapDomain(d: ZitadelDomain): InstanceDomain {

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteInstancesByIdData, DeleteInstancesByIdErrors, DeleteInstancesByIdResponses, DeleteInstancesByInstanceIdDomainsByDomainData, DeleteInstancesByInstanceIdDomainsByDomainErrors, DeleteInstancesByInstanceIdDomainsByDomainResponses, DeleteInstancesByInstanceIdLimitsData, DeleteInstancesByInstanceIdLimitsErrors, DeleteInstancesByInstanceIdLimitsResponses, GetAuthCallbackData, GetAuthLoginData, GetAuthMeData, GetAuthMeErrors, GetAuthMeResponses, GetDomainsByDomainExistsData, GetDomainsByDomainExistsErrors, GetDomainsByDomainExistsResponses, GetIndexData, GetIndexResponses, GetInstancesByIdData, GetInstancesByIdErrors, GetInstancesByIdResponses, GetInstancesByInstanceIdDomainsData, GetInstancesByInstanceIdDomainsErrors, GetInstancesByInstanceIdDomainsResponses, GetInstancesData, GetInstancesErrors, GetInstancesResponses, PostAuthLogoutData, PostAuthLogoutResponses, PostInstancesByInstanceIdDomainsData, PostInstancesByInstanceIdDomainsErrors, PostInstancesByInstanceIdDomainsResponses, PostInstancesByInstanceIdDomainsSetPrimaryData, PostInstancesByInstanceIdDomainsSetPrimaryErrors, PostInstancesByInstanceIdDomainsSetPrimaryResponses, PostInstancesData, PostInstancesErrors, PostInstancesResponses, PutInstancesByIdData, PutInstancesByIdErrors, PutInstancesByIdResponses, PutInstancesByInstanceIdLimitsData, PutInstancesByInstanceIdLimitsErrors, PutInstancesByInstanceIdLimitsResponses } from './types.gen';
+import type { DeleteInstancesByIdData, DeleteInstancesByIdErrors, DeleteInstancesByIdResponses, DeleteInstancesByInstanceIdDomainsByDomainData, DeleteInstancesByInstanceIdDomainsByDomainErrors, DeleteInstancesByInstanceIdDomainsByDomainResponses, DeleteInstancesByInstanceIdLimitsData, DeleteInstancesByInstanceIdLimitsErrors, DeleteInstancesByInstanceIdLimitsResponses, GetAuthCallbackData, GetAuthLoginData, GetAuthMeData, GetAuthMeErrors, GetAuthMeResponses, GetAuthMethodsData, GetAuthMethodsResponses, GetDomainsByDomainExistsData, GetDomainsByDomainExistsErrors, GetDomainsByDomainExistsResponses, GetIndexData, GetIndexResponses, GetInstancesByIdData, GetInstancesByIdErrors, GetInstancesByIdResponses, GetInstancesByInstanceIdDomainsData, GetInstancesByInstanceIdDomainsErrors, GetInstancesByInstanceIdDomainsResponses, GetInstancesData, GetInstancesErrors, GetInstancesResponses, PostAuthLoginData, PostAuthLoginErrors, PostAuthLoginResponses, PostAuthLogoutData, PostAuthLogoutResponses, PostInstancesByInstanceIdDomainsData, PostInstancesByInstanceIdDomainsErrors, PostInstancesByInstanceIdDomainsResponses, PostInstancesByInstanceIdDomainsSetPrimaryData, PostInstancesByInstanceIdDomainsSetPrimaryErrors, PostInstancesByInstanceIdDomainsSetPrimaryResponses, PostInstancesData, PostInstancesErrors, PostInstancesResponses, PutInstancesByIdData, PutInstancesByIdErrors, PutInstancesByIdResponses, PutInstancesByInstanceIdLimitsData, PutInstancesByInstanceIdLimitsErrors, PutInstancesByInstanceIdLimitsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -33,6 +33,20 @@ export const getIndex = <ThrowOnError extends boolean = false>(options?: Options
 export const getAuthLogin = <ThrowOnError extends boolean = false>(options?: Options<GetAuthLoginData, ThrowOnError>): RequestResult<unknown, unknown, ThrowOnError> => (options?.client ?? client).get<unknown, unknown, ThrowOnError>({ url: '/auth/login', ...options });
 
 /**
+ * Static fallback login
+ *
+ * Authenticates the env-configured static admin account (LAVIAC_STATIC_AUTH_USERNAME / LAVIAC_STATIC_AUTH_PASSWORD_HASH). Only available when a password hash is configured; rate-limited.
+ */
+export const postAuthLogin = <ThrowOnError extends boolean = false>(options: Options<PostAuthLoginData, ThrowOnError>): RequestResult<PostAuthLoginResponses, PostAuthLoginErrors, ThrowOnError> => (options.client ?? client).post<PostAuthLoginResponses, PostAuthLoginErrors, ThrowOnError>({
+    url: '/auth/login',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * OIDC callback
  *
  * Exchanges the authorization code for tokens, checks the admin project role, creates a session, and redirects to the app.
@@ -40,11 +54,22 @@ export const getAuthLogin = <ThrowOnError extends boolean = false>(options?: Opt
 export const getAuthCallback = <ThrowOnError extends boolean = false>(options?: Options<GetAuthCallbackData, ThrowOnError>): RequestResult<unknown, unknown, ThrowOnError> => (options?.client ?? client).get<unknown, unknown, ThrowOnError>({ url: '/auth/callback', ...options });
 
 /**
+ * Available authentication methods
+ *
+ * Reports which login methods are configured, so the login page can render the right forms.
+ */
+export const getAuthMethods = <ThrowOnError extends boolean = false>(options?: Options<GetAuthMethodsData, ThrowOnError>): RequestResult<GetAuthMethodsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetAuthMethodsResponses, unknown, ThrowOnError>({ url: '/auth/methods', ...options });
+
+/**
  * Log out
  *
  * Destroys the current session and clears the session cookie.
  */
-export const postAuthLogout = <ThrowOnError extends boolean = false>(options?: Options<PostAuthLogoutData, ThrowOnError>): RequestResult<PostAuthLogoutResponses, unknown, ThrowOnError> => (options?.client ?? client).post<PostAuthLogoutResponses, unknown, ThrowOnError>({ url: '/auth/logout', ...options });
+export const postAuthLogout = <ThrowOnError extends boolean = false>(options?: Options<PostAuthLogoutData, ThrowOnError>): RequestResult<PostAuthLogoutResponses, unknown, ThrowOnError> => (options?.client ?? client).post<PostAuthLogoutResponses, unknown, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/auth/logout',
+    ...options
+});
 
 /**
  * Current admin user

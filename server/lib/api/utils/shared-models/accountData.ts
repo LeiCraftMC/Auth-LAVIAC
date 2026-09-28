@@ -12,4 +12,9 @@ export namespace UserAccountSettings {
 	export const Roles = ["admin", "member"] as const;
 	export const Role = z.enum(Roles);
 	export type Role = z.infer<typeof Role>;
+
+	/** How a session was created: via Zitadel OIDC or the env-based static fallback login. */
+	export const LoginMethods = ["oidc", "static"] as const;
+	export const LoginMethod = z.enum(LoginMethods);
+	export type LoginMethod = z.infer<typeof LoginMethod>;
 }

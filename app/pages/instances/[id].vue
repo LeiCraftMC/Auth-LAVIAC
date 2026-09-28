@@ -37,7 +37,7 @@ function startRename() {
 async function saveRename() {
 	renameSaving.value = true;
 	const result = await useAPI((api) =>
-		api.updateInstance({ path: { id }, body: { instanceName: renameValue.value } }),
+		api.putInstancesById({ path: { id }, body: { instanceName: renameValue.value } }),
 	);
 	renameSaving.value = false;
 	if (!result.success) {
@@ -50,7 +50,7 @@ async function saveRename() {
 }
 
 async function remove() {
-	const result = await useAPI((api) => api.deleteInstance({ path: { id } }));
+	const result = await useAPI((api) => api.deleteInstancesById({ path: { id } }));
 	if (!result.success) {
 		toast.add({ title: "Delete failed", description: result.message, color: "error" });
 		return;

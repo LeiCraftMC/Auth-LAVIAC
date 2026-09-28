@@ -13,14 +13,9 @@ import * as TableSchema from "./schema";
 import type { DrizzleDB } from "./utils";
 
 export class DB {
+	protected static db: DrizzleDB;
 
-    protected static db: DrizzleDB;
-
-    static async init(
-        path: string,
-        autoMigrate: boolean = false,
-    ) {
-		
+	static async init(path: string, autoMigrate: boolean = false) {
 		if (path !== ":memory:") {
 			await mkdir(dirname(path), { recursive: true });
 		}
@@ -28,7 +23,7 @@ export class DB {
 		this.db = drizzle(path);
 		if (autoMigrate) {
 			Logger.info("Running database migrations...");
-			await migrate(DB.db as DrizzleDB.BunSQLite, { migrationsFolder: "drizzle" });
+			await migrate(DB.db as DrizzleDB.BunSQLite, { migrationsFolder: "drizzle/migrations" });
 			Logger.info("Database migrations completed.");
 		}
 

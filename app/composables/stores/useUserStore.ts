@@ -4,7 +4,8 @@ export interface AdminUser {
 	sub: string;
 	email: string | null;
 	name: string | null;
-	isAdmin: boolean;
+	role: "admin" | "member";
+	login_method: "oidc" | "static";
 }
 
 class UserStore extends BasicAbstractStore<AdminUser> {

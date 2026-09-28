@@ -43,7 +43,7 @@ const openAPIConfig: Partial<GenerateSpecOptions> = {
 			},
 			{ name: "Limits", description: "Per-instance limits and quota." },
 		],
-		// @ts-ignore — x-tagGroups is valid OpenAPI but not typed by this hono-openapi version.
+		// @ts-expect-error — x-tagGroups is valid OpenAPI but not typed by this hono-openapi version.
 		"x-tagGroups": [
 			{ name: "System", tags: ["System"] },
 			{ name: "Authentication", tags: ["Authentication"] },

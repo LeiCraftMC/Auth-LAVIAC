@@ -12,13 +12,13 @@
  */
 import { Hono } from "hono";
 import { validator as zValidator } from "hono-openapi";
-import { Audit } from "../../../../../../utils/audit";
-import { ZitadelClient } from "../../../../../../zitadel/client";
+import { Audit } from "../../../../../utils/audit";
+import { ZitadelClient } from "../../../../../zitadel/client";
 import { APIResponse } from "../../../../utils/api-res";
 import { AuthHandler } from "../../../../utils/authHandler";
 import { APIResponseSpec, APIRouteSpec } from "../../../../utils/specHelpers";
-import { requireAdmin } from "../../middleware/auth";
 import { DOCS_TAGS } from "../../docs";
+import { requireAdmin } from "../../middleware/auth";
 import { instanceDomainsRouter } from "./domains";
 import { handleZitadelError } from "./errors";
 import { instanceLimitsRouter } from "./limits";
@@ -74,7 +74,7 @@ app.post(
 			const result = await ZitadelClient.createInstance(body);
 			const ctx = AuthHandler.getAuthContext(c);
 			await Audit.log(
-				ctx.type === "session" ? ctx.sub : "system",
+				ctx.type === "session" ? ctx.user_sub : "system",
 				"instance.create",
 				result.instanceId,
 				body.instanceName,
@@ -135,7 +135,7 @@ app.put(
 			const instance = await ZitadelClient.getInstance(id);
 			const ctx = AuthHandler.getAuthContext(c);
 			await Audit.log(
-				ctx.type === "session" ? ctx.sub : "system",
+				ctx.type === "session" ? ctx.user_sub : "system",
 				"instance.update",
 				id,
 				instanceName,
@@ -165,7 +165,7 @@ app.delete(
 		try {
 			await ZitadelClient.deleteInstance(id);
 			const ctx = AuthHandler.getAuthContext(c);
-			await Audit.log(ctx.type === "session" ? ctx.sub : "system", "instance.delete", id);
+			await Audit.log(ctx.type === "session" ? ctx.user_sub : "system", "instance.delete", id);
 			return APIResponse.successNoData(c, "Instance deleted");
 		} catch (err) {
 			return handleZitadelError(c, err);

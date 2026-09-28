@@ -6,11 +6,11 @@
  * remains a POST — see ZitadelClient.existsDomain).
  */
 import { Hono } from "hono";
-import { ZitadelClient } from "../../../../../../zitadel/client";
+import { ZitadelClient } from "../../../../../zitadel/client";
 import { APIResponse } from "../../../../utils/api-res";
 import { APIResponseSpec, APIRouteSpec } from "../../../../utils/specHelpers";
-import { requireAdmin } from "../../middleware/auth";
 import { DOCS_TAGS } from "../../docs";
+import { requireAdmin } from "../../middleware/auth";
 import { handleZitadelError } from "../instances/errors";
 import { DomainsModel } from "./model";
 

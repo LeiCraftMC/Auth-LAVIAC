@@ -157,14 +157,9 @@ export async function useAPI<TReturn>(
 
 			const result = unwrap(await handler(baseAPIClient));
 
-			if (
-				result?.success === false &&
-				result?.code === 401 &&
-				(result?.message === "Invalid or expired token" ||
-					result?.message === "Missing or invalid Authorization header" ||
-					// LAVIAC's /auth/me rejects unauthenticated sessions with this message.
-					result?.message === "Not authenticated")
-			) {
+			// docs/10-auth.md: redirect on ANY 401 — an older message-matching approach
+			// drifted out of sync with backend messages and silently stopped firing.
+			if (result?.success === false && result?.code === 401) {
 				updateAPIClient(null);
 				sessionToken.value = null;
 				if (!disableAuthRedirect) {

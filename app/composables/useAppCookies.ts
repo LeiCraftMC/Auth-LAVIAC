@@ -25,7 +25,17 @@ class AppCookie<T extends string | null | undefined> {
 }
 
 export function useAppCookies() {
+	// docs/10-auth.md: `httpOnly: false` — the client must read the token to attach it as
+	// `Authorization: Bearer` via updateAPIClient. LAVIAC sets `secure` dynamically (from
+	// LAVIAC_APP_URL) so the cookie also works on plain-http local development — recorded
+	// as a divergence in AGENTS.md.
+	const sessionCookieOptions: CookieOptionsWithoutReadonly<string | null> = {
+		path: "/",
+		sameSite: "lax",
+		httpOnly: false,
+		secure: useRuntimeAppConfigs().appUrl.startsWith("https://"),
+	};
 	return {
-		sessionToken: new AppCookie<string | null>("laviac_session_token"),
+		sessionToken: new AppCookie<string | null>("laviac_session_token", sessionCookieOptions),
 	} as const;
 }

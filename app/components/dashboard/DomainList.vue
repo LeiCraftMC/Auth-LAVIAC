@@ -42,7 +42,10 @@ async function add() {
 
 async function setPrimary(domain: string) {
 	const result = await useAPI((api) =>
-		api.postInstancesByInstanceIdDomainsSetPrimary({ path: { instanceId: props.instanceId }, body: { domain } }),
+		api.postInstancesByInstanceIdDomainsSetPrimary({
+			path: { instanceId: props.instanceId },
+			body: { domain },
+		}),
 	);
 	if (!result.success) {
 		toast.add({ title: "Failed", description: result.message, color: "error" });
@@ -53,7 +56,9 @@ async function setPrimary(domain: string) {
 
 async function remove(domain: string) {
 	const result = await useAPI((api) =>
-		api.deleteInstancesByInstanceIdDomainsByDomain({ path: { instanceId: props.instanceId, domain } }),
+		api.deleteInstancesByInstanceIdDomainsByDomain({
+			path: { instanceId: props.instanceId, domain },
+		}),
 	);
 	if (!result.success) {
 		toast.add({ title: "Remove failed", description: result.message, color: "error" });

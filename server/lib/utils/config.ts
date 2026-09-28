@@ -83,17 +83,15 @@ class ConfigSchema<T extends ConfigSchemaSettings = {}> {
 	}
 }
 
-
-// @ts-ignore
+// @ts-expect-error
 export type ParsedConfig = ConfigLike<typeof ConfigHandler.schema.schema>;
 
 export class ConfigHandler {
-
 	private static readonly schema = new ConfigSchema()
 		.add("LAVIAC_LOG_LEVEL", false, ["debug", "info", "warn", "error", "critical"])
 
 		.add("LAVIAC_API_DISABLE_DOCS", false, [true, false])
-		
+
 		.add("LAVIAC_DB_PATH", false)
 		.add("LAVIAC_DB_AUTO_MIGRATE", false, [true, false])
 
@@ -110,7 +108,9 @@ export class ConfigHandler {
 		.add("LAVIAC_OIDC_CLIENT_SECRET", false)
 		.add("LAVIAC_OIDC_ADMIN_ROLE", false)
 		.add("LAVIAC_SESSION_TTL_HOURS", false)
-	;
+
+		.add("LAVIAC_STATIC_AUTH_USERNAME", false)
+		.add("LAVIAC_STATIC_AUTH_PASSWORD_HASH", false);
 
 	private static config: ParsedConfig | null = null;
 
@@ -124,8 +124,8 @@ export class ConfigHandler {
 
 	static async loadConfig(): Promise<ParsedConfig> {
 		if (this.config) return this.config;
-        this.config = this.schema.parse();
-        return this.config;
+		this.config = this.schema.parse();
+		return this.config;
 	}
 
 	/**
@@ -138,12 +138,11 @@ export class ConfigHandler {
 		if (config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY) {
 			return config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY;
 		}
-		const path = config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH;
-		if (!path) {
-			throw new Error(
-				"LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH (or LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY) must be set.",
-			);
-		}
+		// The path may be given explicitly, or derived from LAVIAC_CONFIG_BASE_DIR
+		// (default ./config) as <base>/system-user.pem.
+		const path =
+			config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH ??
+			`${config.LAVIAC_CONFIG_BASE_DIR ?? "./config"}/system-user.pem`;
 		return readFileSync(path, "utf8");
 	}
 }

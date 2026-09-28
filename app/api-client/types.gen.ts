@@ -35,12 +35,92 @@ export type GetAuthLoginData = {
     url: '/auth/login';
 };
 
+export type PostAuthLoginData = {
+    body: {
+        username: string;
+        password: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/login';
+};
+
+export type PostAuthLoginErrors = {
+    /**
+     * Bad Request: Syntax or validation error in request
+     */
+    400: {
+        success: false;
+        code: 400;
+        message: 'Bad Request: Syntax or validation error in request';
+    };
+    /**
+     * Invalid username or password
+     */
+    401: {
+        success: false;
+        code: 401;
+        message: 'Invalid username or password';
+    };
+    /**
+     * Too many login attempts. Try again later.
+     */
+    429: {
+        success: false;
+        code: 429;
+        message: 'Too many login attempts. Try again later.';
+    };
+};
+
+export type PostAuthLoginError = PostAuthLoginErrors[keyof PostAuthLoginErrors];
+
+export type PostAuthLoginResponses = {
+    /**
+     * Login successful
+     */
+    200: {
+        success: true;
+        code: 200;
+        message: 'Login successful';
+        data: {
+            token: string;
+            expires_at: number;
+        };
+    };
+};
+
+export type PostAuthLoginResponse = PostAuthLoginResponses[keyof PostAuthLoginResponses];
+
 export type GetAuthCallbackData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/auth/callback';
 };
+
+export type GetAuthMethodsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/auth/methods';
+};
+
+export type GetAuthMethodsResponses = {
+    /**
+     * Authentication methods
+     */
+    200: {
+        success: true;
+        code: 200;
+        message: 'Authentication methods';
+        data: {
+            oidc: boolean;
+            static: boolean;
+        };
+    };
+};
+
+export type GetAuthMethodsResponse = GetAuthMethodsResponses[keyof GetAuthMethodsResponses];
 
 export type PostAuthLogoutData = {
     body?: never;
@@ -95,7 +175,8 @@ export type GetAuthMeResponses = {
             sub: string;
             email: string | null;
             name: string | null;
-            isAdmin: boolean;
+            role: 'admin' | 'member';
+            login_method: 'oidc' | 'static';
         };
     };
 };

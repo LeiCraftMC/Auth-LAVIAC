@@ -5,7 +5,7 @@
  */
 import { Hono } from "hono";
 import { validator as zValidator } from "hono-openapi";
-import { ZitadelClient } from "../../../../../../../zitadel/client";
+import { ZitadelClient } from "../../../../../../zitadel/client";
 import { APIResponse } from "../../../../../utils/api-res";
 import { APIResponseSpec, APIRouteSpec } from "../../../../../utils/specHelpers";
 import { DOCS_TAGS } from "../../../docs";

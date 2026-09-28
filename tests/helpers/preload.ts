@@ -1,19 +1,26 @@
 /// <reference types="bun-types" />
+
+import { afterAll, beforeAll } from "bun:test";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { afterAll, beforeAll } from "bun:test";
 import { API } from "../../server/lib/api";
-import { DB } from "../../server/db";
-import { ConfigHandler, type ParsedConfig } from "../../server/utils/config";
+import { DB } from "../../server/lib/db";
+import { ConfigHandler, type ParsedConfig } from "../../server/lib/utils/config";
+
+/** Hash for the static-auth test password, computed once with Bun.password (argon2id). */
+export const STATIC_AUTH_TEST_PASSWORD = "static-auth-test-password";
+const STATIC_AUTH_TEST_HASH = await Bun.password.hash(STATIC_AUTH_TEST_PASSWORD);
 
 function setTestEnv(rootDir: string) {
 	const envVars = {
 		LAVIAC_LOG_LEVEL: "debug",
-		LAVIAC_APP_URL: "http://localhost:12400",
+		LAVIAC_APP_URL: "http://localhost:12191",
 		LAVIAC_API_DISABLE_DOCS: true,
 		LAVIAC_DB_PATH: path.join(rootDir, "db.sqlite"),
 		LAVIAC_DB_AUTO_MIGRATE: true,
 		LAVIAC_CONFIG_BASE_DIR: rootDir,
+		LAVIAC_STATIC_AUTH_USERNAME: "admin",
+		LAVIAC_STATIC_AUTH_PASSWORD_HASH: STATIC_AUTH_TEST_HASH,
 	} as const satisfies Partial<ParsedConfig>;
 
 	for (const [key, value] of Object.entries(envVars)) {
