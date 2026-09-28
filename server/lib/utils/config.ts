@@ -1,3 +1,4 @@
+import { createPrivateKey } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { AppConstants } from "./constants";
@@ -158,19 +159,35 @@ export class ConfigHandler {
 	}
 
 	/**
-	 * LAVIAC: resolve the Zitadel system-user RSA private key (PEM). An inline key
-	 * (`LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY`) wins; otherwise the key is read from
+	 * LAVIAC: resolve the Zitadel system-user RSA private key (PEM), always normalized to
+	 * PKCS#8 (see {@link normalizePrivateKeyPem}). An inline key
+	 * (`LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY`) wins — env-var values may carry literal
+	 * `\n` sequences, which are restored; otherwise the key is read from
 	 * `LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH` (default:
 	 * `${LAVIAC_CONFIG_BASE_DIR}/system-user.pem`). Used by server/lib/zitadel/jwt.ts.
 	 */
 	static resolveSystemUserPrivateKey(): string {
 		const config = ConfigHandler.getConfig();
 		if (config?.ZITADEL_SYSTEM_USER_PRIVATE_KEY) {
-			return config.ZITADEL_SYSTEM_USER_PRIVATE_KEY;
+			return ConfigHandler.normalizePrivateKeyPem(
+				config.ZITADEL_SYSTEM_USER_PRIVATE_KEY.replace(/\\n/g, "\n"),
+			);
 		}
 		const path =
 			config?.ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH ??
 			`${config?.CONFIG_BASE_DIR ?? "./config"}/system-user.pem`;
-		return readFileSync(path, "utf8");
+		return ConfigHandler.normalizePrivateKeyPem(readFileSync(path, "utf8"));
+	}
+
+	/**
+	 * jose's `importPKCS8` requires PKCS#8 (`-----BEGIN PRIVATE KEY-----`), but
+	 * `openssl genrsa -traditional` (see example.env) emits PKCS#1
+	 * (`-----BEGIN RSA PRIVATE KEY-----`). PKCS#1 keys are converted via node:crypto;
+	 * PKCS#8 input passes through unchanged.
+	 */
+	static normalizePrivateKeyPem(pem: string): string {
+		if (!pem.includes("BEGIN RSA PRIVATE KEY")) return pem;
+		const key = createPrivateKey(pem);
+		return key.export({ type: "pkcs8", format: "pem" }).toString();
 	}
 }
