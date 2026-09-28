@@ -1,9 +1,9 @@
 /**
  * Domains sub-router — mounted at /instances/:instanceId/domains by the instances router.
- *   GET    /                      → list domains
- *   POST   /                      → add a custom domain
- *   DELETE /:domain               → remove a custom domain
- *   POST   /_set_primary          → set the primary domain
+ *   GET    /              → list domains
+ *   POST   /              → add a custom domain
+ *   POST   /_set_primary  → set the primary domain
+ *   DELETE /:domain       → remove a custom domain
  */
 import { Hono } from "hono";
 import { validator as zValidator } from "hono-openapi";
@@ -15,19 +15,22 @@ import { handleZitadelError } from "../errors";
 import { mapDomain } from "../mapper";
 import { InstanceDomainsModel } from "./model";
 
-const app = new Hono();
+export const router = new Hono().basePath("/domains");
 
-app.get(
+router.get(
 	"/",
+
 	APIRouteSpec.authenticated({
 		summary: "List instance domains",
 		tags: [DOCS_TAGS.DOMAINS],
+
 		responses: APIResponseSpec.describeBasic(
 			APIResponseSpec.success("Domains", InstanceDomainsModel.List.Response),
 			APIResponseSpec.unauthorized(),
 			APIResponseSpec.forbidden(),
 		),
 	}),
+
 	async (c) => {
 		const instanceId = c.req.param("instanceId") ?? "";
 		try {
@@ -39,12 +42,13 @@ app.get(
 	},
 );
 
-app.post(
+router.post(
 	"/",
-	zValidator("json", InstanceDomainsModel.Add.Body),
+
 	APIRouteSpec.authenticated({
 		summary: "Add a custom domain",
 		tags: [DOCS_TAGS.DOMAINS],
+
 		responses: APIResponseSpec.describeWithWrongInputs(
 			APIResponseSpec.createdNoData("Domain added"),
 			APIResponseSpec.conflict("Domain already exists"),
@@ -52,6 +56,9 @@ app.post(
 			APIResponseSpec.forbidden(),
 		),
 	}),
+
+	zValidator("json", InstanceDomainsModel.Add.Body),
+
 	async (c) => {
 		const instanceId = c.req.param("instanceId") ?? "";
 		const { domain } = c.req.valid("json");
@@ -64,12 +71,13 @@ app.post(
 	},
 );
 
-app.post(
+router.post(
 	"/_set_primary",
-	zValidator("json", InstanceDomainsModel.SetPrimary.Body),
+
 	APIRouteSpec.authenticated({
 		summary: "Set the primary domain",
 		tags: [DOCS_TAGS.DOMAINS],
+
 		responses: APIResponseSpec.describeWithWrongInputs(
 			APIResponseSpec.successNoData("Primary domain updated"),
 			APIResponseSpec.notFound("Domain not found"),
@@ -77,6 +85,9 @@ app.post(
 			APIResponseSpec.forbidden(),
 		),
 	}),
+
+	zValidator("json", InstanceDomainsModel.SetPrimary.Body),
+
 	async (c) => {
 		const instanceId = c.req.param("instanceId") ?? "";
 		const { domain } = c.req.valid("json");
@@ -89,11 +100,13 @@ app.post(
 	},
 );
 
-app.delete(
+router.delete(
 	"/:domain",
+
 	APIRouteSpec.authenticated({
 		summary: "Remove a custom domain",
 		tags: [DOCS_TAGS.DOMAINS],
+
 		responses: APIResponseSpec.describeBasic(
 			APIResponseSpec.successNoData("Domain removed"),
 			APIResponseSpec.unauthorized(),
@@ -101,6 +114,7 @@ app.delete(
 			APIResponseSpec.notFound("Domain not found"),
 		),
 	}),
+
 	async (c) => {
 		const instanceId = c.req.param("instanceId") ?? "";
 		const domain = c.req.param("domain");
@@ -112,5 +126,3 @@ app.delete(
 		}
 	},
 );
-
-export const instanceDomainsRouter = app;

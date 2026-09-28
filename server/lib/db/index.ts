@@ -1,48 +1,58 @@
-/**
- * DB — static Drizzle/SQLite singleton. Tables are exposed through `DB.Tables`, row types
- * through `DB.Models`. No initial-admin bootstrap here: LAVIAC admins sign in via Zitadel
- * OIDC and are authorized by the project role (see AGENTS.md).
- * See Style-Guides docs/08-database.md.
- */
-import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+import { mkdir as fs_mkdir } from "fs/promises";
+import { dirname as path_dirname, join as path_join } from "path";
 import { Logger } from "../utils/logger";
 import * as TableSchema from "./schema";
 import type { DrizzleDB } from "./utils";
 
 export class DB {
-	protected static db: DrizzleDB;
+	protected static db: DrizzleDB.BunSQLite;
 
-	static async init(path: string, autoMigrate: boolean = false) {
-		if (path !== ":memory:") {
-			await mkdir(dirname(path), { recursive: true });
-		}
+	static async init(path: string, autoMigrate: boolean, configBaseDir: string) {
+		await fs_mkdir(path_dirname(path), { recursive: true });
+		await fs_mkdir(configBaseDir, { recursive: true });
 
 		this.db = drizzle(path);
 		if (autoMigrate) {
 			Logger.info("Running database migrations...");
-			await migrate(DB.db as DrizzleDB.BunSQLite, { migrationsFolder: "drizzle/migrations" });
+
+			let migrationsFolder = "drizzle/migrations";
+			if (Bun?.isStandaloneExecutable) {
+				migrationsFolder = path_join(import.meta.dir, migrationsFolder);
+			}
+
+			await migrate(this.db, { migrationsFolder });
+
 			Logger.info("Database migrations completed.");
 		}
+
+		// No initial-admin bootstrap here: LAVIAC admins sign in via Zitadel OIDC
+		// (or the env-based static fallback) — see AGENTS.md. The guide's
+		// createInitialAdminUserIfNeeded pattern does not apply.
 
 		Logger.info(`Database initialized at ${path}`);
 	}
 
-	static instance(): DrizzleDB {
+	static instance() {
 		if (!this.db) {
 			throw new Error("Database not initialized. Call DB.init() first.");
 		}
-		return this.db;
+		return DB.db;
 	}
 
 	static async close() {
 		if (!this.db) return;
 
 		Logger.info("Database connection closed.");
-		this.db.$client.close();
-		await Bun.sleep(500); // let the file handle flush on Windows
+		await this.db.$client.close();
+
+		// `close()` calls sqlite3_close_v2, which defers releasing the OS file
+		// handle until any unfinalized prepared statements are garbage collected.
+		// Force that now so the underlying file is actually free (e.g. for tests
+		// that remove the DB file/directory right after closing).
+		Bun.gc(true);
+		await Bun.sleep(500);
 	}
 }
 

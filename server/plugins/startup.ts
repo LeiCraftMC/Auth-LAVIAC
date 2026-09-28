@@ -1,22 +1,32 @@
 import { defineNitroPlugin } from "nitropack/runtime";
 import { API } from "../lib/api";
-import { SessionHandler } from "../lib/api/utils/authHandler";
 import { DB } from "../lib/db";
 import { ConfigHandler } from "../lib/utils/config";
+import { AppConstants } from "../lib/utils/constants";
 import { Logger } from "../lib/utils/logger";
 
-export default defineNitroPlugin(async () => {
+// Runs once at Nitro boot — replaces Main.main() from the standalone backend shape.
+export default defineNitroPlugin(async (nitroApp) => {
 	const config = await ConfigHandler.loadConfig();
 
-	Logger.setLogLevel(config.LAVIAC_LOG_LEVEL ?? "info");
+	Logger.setLogLevel(config.LOG_LEVEL);
+	Logger.log(`Starting ${AppConstants.APP_NAME}...`);
 
-	Logger.log("Starting LAVIAC...");
+	await DB.init(config.DB_PATH, config.DB_AUTO_MIGRATE, config.CONFIG_BASE_DIR);
 
-	await DB.init(config.LAVIAC_DB_PATH ?? "./data/db.sqlite", config.LAVIAC_DB_AUTO_MIGRATE ?? true);
+	await API.init([config.APP_URL], config.API_DISABLE_DOCS === true);
 
-	await SessionHandler.cleanupExpired();
+	nitroApp.hooks.hook("close", async () => {
+		try {
+			Logger.log(`Received SIGTERM, shutting down...`);
 
-	await API.init(config.LAVIAC_API_DISABLE_DOCS === true);
+			await API.stop();
 
-	Logger.log("LAVIAC ready.");
+			await DB.close();
+
+			Logger.log("Shutdown complete, exiting.");
+		} catch {
+			Logger.critical("Error during shutdown, forcing exit");
+		}
+	});
 });

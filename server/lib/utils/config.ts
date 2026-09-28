@@ -1,148 +1,172 @@
-/**
- * ConfigHandler — typed LAVIAC_* environment-variable loader.
- * Copied from Style-Guides shared/backend/config-schema.ts and adapted to the LAVIAC prefix.
- * See docs/09-config-and-logging.md.
- */
 import { readFileSync } from "node:fs";
+import { z } from "zod";
+import { AppConstants } from "./constants";
 import { Logger } from "./logger";
 
-interface ConfigSchemaSetting<
-	REQUIRED extends ConfigSchemaSetting.Required,
-	TYPE extends ConfigSchemaSetting.Type = undefined,
-> {
-	required: REQUIRED;
-	type?: TYPE;
-}
-
-namespace ConfigSchemaSetting {
-	export type Required = boolean;
-	export type Type = string[] | boolean[] | undefined;
-	export type Sample = ConfigSchemaSetting<Required, Type>;
-}
-
-type ConfigValueType<
-	T extends ConfigSchemaSetting.Sample,
-	F = [T] extends [ConfigSchemaSetting<any, infer U>]
-		? U extends (string | boolean)[]
-			? U[number]
-			: string
-		: string,
-> = T["required"] extends true ? F : F | undefined;
-
 interface ConfigSchemaSettings {
-	[key: string]: ConfigSchemaSetting.Sample;
+	[key: string]: CS.ConfigItem<z.ZodType>;
 }
 
 type ConfigLike<T extends ConfigSchemaSettings> = {
-	[K in keyof T]: ConfigValueType<T[K]>;
+	[K in keyof T]: z.infer<T[K]["_schema"]>;
 };
 
-class ConfigSchema<T extends ConfigSchemaSettings = {}> {
-	readonly schema: T = {} as any;
+class CS {
+	private constructor() {}
 
-	public add<
-		KEY extends string,
-		Setings extends ConfigSchemaSetting<ISREQUIRED, TYPE>,
-		ISREQUIRED extends boolean,
-		const TYPE extends ConfigSchemaSetting.Type = undefined,
-	>(key: KEY, required = false as ISREQUIRED, type?: TYPE) {
-		(this.schema as any)[key] = { required, type };
-		return this as any as ConfigSchema<T & { [K in KEY]: Setings }>;
+	static string() {
+		return new CS.ConfigItem(z.string());
+	}
+
+	static number() {
+		return new CS.ConfigItem(z.coerce.number());
+	}
+
+	static boolean() {
+		// `z.coerce.boolean()` would turn the string "false" into true; accept real booleans and
+		// "true"/"false"/"1"/"0"/"yes"/"no"/"on"/"off" strings instead.
+		return new CS.ConfigItem(z.union([z.boolean(), z.stringbool()]));
+	}
+
+	static enum<const T extends readonly string[]>(values: T) {
+		return new CS.ConfigItem(z.enum(values));
+	}
+
+	static array() {
+		return new CS.ConfigItem(
+			z.string().transform<string[]>((val) => {
+				if (typeof val === "string") {
+					return val
+						.split(",")
+						.map((v) => v.trim())
+						.filter(Boolean);
+				}
+				return [];
+			}),
+		);
+	}
+}
+
+namespace CS {
+	export class ConfigItem<const Schema extends z.ZodType> {
+		constructor(public _schema: Schema) {}
+
+		public parse(value: unknown) {
+			return this._schema.safeParse(value);
+		}
+
+		public default(value: z.util.NoUndefined<z.core.output<Schema>>) {
+			this._schema = this._schema.default(value) as any;
+			return this as any as ConfigItem<z.ZodDefault<Schema>>;
+		}
+
+		public optional() {
+			this._schema = this._schema.optional() as any;
+			return this as any as ConfigItem<z.ZodOptional<Schema>>;
+		}
+	}
+}
+
+class ConfigSchema<T extends ConfigSchemaSettings> {
+	readonly schema: T;
+
+	constructor(schema: T) {
+		this.schema = schema;
 	}
 
 	public parse() {
 		const result: ConfigLike<T> = {} as ConfigLike<T>;
 
 		for (const [key, settings] of Object.entries(this.schema)) {
-			const value = process.env[key];
+			const value = process.env[`${AppConstants.APP_ENV_PREFIX}_${key}`];
 
-			if (!value) {
-				if (settings.required) {
-					Logger.error(`The environment variable ${key} is required but not set.`);
-					process.exit(1);
-				}
-				continue;
+			const parseResult = settings.parse(value);
+			if (!parseResult.success) {
+				Logger.error(
+					`Failed to read the environment variable ${key}: ${parseResult.error.issues[0]?.message}`,
+				);
+				process.exit(1);
 			}
 
-			if (settings.type) {
-				if (typeof settings.type[0] === "boolean") {
-					(result[key] as any) = value.toLowerCase() === "true";
-					continue;
-				}
-				if (!(settings.type as string[]).some((t) => t.toLowerCase() === value.toLowerCase())) {
-					Logger.error(
-						`The environment variable ${key} has to be one of the following: ${settings.type.join(", ")}`,
-					);
-					process.exit(1);
-				}
-			}
-
-			(result[key] as any) = value;
+			// Store the parsed (coerced/defaulted) value, not the raw env string —
+			// otherwise numbers/booleans stay strings and defaults/optionals are lost.
+			(result[key] as any) = parseResult.data;
 		}
 		return result;
 	}
 }
 
-// @ts-expect-error
+export type ENVConfigLike = {
+	[K in Extract<
+		keyof typeof ConfigHandler.schema.schema,
+		string
+	> as `${typeof AppConstants.APP_ENV_PREFIX}_${K}`]: z.infer<
+		(typeof ConfigHandler.schema.schema)[K]["_schema"]
+	>;
+};
+
 export type ParsedConfig = ConfigLike<typeof ConfigHandler.schema.schema>;
 
 export class ConfigHandler {
-	private static readonly schema = new ConfigSchema()
-		.add("LAVIAC_LOG_LEVEL", false, ["debug", "info", "warn", "error", "critical"])
+	// Public so ENVConfigLike / ParsedConfig can derive from it without @ts-expect-error.
+	// Treat it as read-only.
+	static schema = new ConfigSchema({
+		LOG_LEVEL: CS.enum(["debug", "info", "warn", "error", "critical"]).default("info"),
 
-		.add("LAVIAC_API_DISABLE_DOCS", false, [true, false])
+		API_DISABLE_DOCS: CS.boolean().default(false),
 
-		.add("LAVIAC_DB_PATH", false)
-		.add("LAVIAC_DB_AUTO_MIGRATE", false, [true, false])
+		DB_PATH: CS.string().default("./data/db.sqlite"),
+		DB_AUTO_MIGRATE: CS.boolean().default(true),
 
-		.add("LAVIAC_CONFIG_BASE_DIR", false)
+		CONFIG_BASE_DIR: CS.string().default("./config"),
 
-		.add("LAVIAC_APP_URL", false)
+		APP_URL: CS.string(),
 
-		.add("LAVIAC_ZITADEL_URL", false)
-		.add("LAVIAC_ZITADEL_SYSTEM_USER_ID", false)
-		.add("LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH", false)
-		.add("LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY", false)
+		ZITADEL_URL: CS.string().optional(),
+		ZITADEL_SYSTEM_USER_ID: CS.string().optional(),
+		ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH: CS.string().optional(),
+		ZITADEL_SYSTEM_USER_PRIVATE_KEY: CS.string().optional(),
 
-		.add("LAVIAC_OIDC_CLIENT_ID", false)
-		.add("LAVIAC_OIDC_CLIENT_SECRET", false)
-		.add("LAVIAC_OIDC_ADMIN_ROLE", false)
-		.add("LAVIAC_SESSION_TTL_HOURS", false)
+		OIDC_CLIENT_ID: CS.string().optional(),
+		OIDC_CLIENT_SECRET: CS.string().optional(),
+		// The Zitadel project role that grants LAVIAC admin access.
+		OIDC_ADMIN_ROLE: CS.string().default("laviac_admin"),
 
-		.add("LAVIAC_STATIC_AUTH_USERNAME", false)
-		.add("LAVIAC_STATIC_AUTH_PASSWORD_HASH", false);
+		// Session lifetime in hours (docs/10-auth.md default: 7 days).
+		SESSION_TTL_HOURS: CS.number().optional(),
+
+		// Static fallback login (alongside OIDC) — enabled only when the hash is set.
+		STATIC_AUTH_USERNAME: CS.string().default("admin"),
+		STATIC_AUTH_PASSWORD_HASH: CS.string().optional(),
+	});
 
 	private static config: ParsedConfig | null = null;
 
-	/** You have to call {@link ConfigHandler.parseConfigFile} before trying to access the config. */
-	static getConfig(): ParsedConfig {
-		if (!ConfigHandler.config) {
-			throw new Error("Config not loaded. Call ConfigHandler.loadConfig() first.");
-		}
-		return ConfigHandler.config;
+	/** You have to call {@link ConfigHandler.loadConfig} before trying to access the config. */
+	static getConfig() {
+		return this.config;
 	}
 
-	static async loadConfig(): Promise<ParsedConfig> {
+	static async loadConfig() {
 		if (this.config) return this.config;
 		this.config = this.schema.parse();
 		return this.config;
 	}
 
 	/**
-	 * Resolve the Zitadel system-user RSA private key (PEM). An inline key
+	 * LAVIAC: resolve the Zitadel system-user RSA private key (PEM). An inline key
 	 * (`LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY`) wins; otherwise the key is read from
-	 * `LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH`. Used by server/zitadel/jwt.ts.
+	 * `LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH` (default:
+	 * `${LAVIAC_CONFIG_BASE_DIR}/system-user.pem`). Used by server/lib/zitadel/jwt.ts.
 	 */
 	static resolveSystemUserPrivateKey(): string {
 		const config = ConfigHandler.getConfig();
-		if (config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY) {
-			return config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY;
+		if (config?.ZITADEL_SYSTEM_USER_PRIVATE_KEY) {
+			return config.ZITADEL_SYSTEM_USER_PRIVATE_KEY;
 		}
-		// The path may be given explicitly, or derived from LAVIAC_CONFIG_BASE_DIR
-		// (default ./config) as <base>/system-user.pem.
 		const path =
-			config.LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH ??
-			`${config.LAVIAC_CONFIG_BASE_DIR ?? "./config"}/system-user.pem`;
+			config?.ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH ??
+			`${config?.CONFIG_BASE_DIR ?? "./config"}/system-user.pem`;
 		return readFileSync(path, "utf8");
 	}
 }

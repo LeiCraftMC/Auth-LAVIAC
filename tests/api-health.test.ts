@@ -4,8 +4,8 @@ import { API } from "../server/lib/api";
 import { makeAPIRequest } from "./helpers/api";
 
 describe("health", () => {
-	it("GET /v1 returns a healthy envelope", async () => {
-		const res = await makeAPIRequest<{ status: string; uptime: number }>(API.getApp(), "/v1", {
+	it("GET /v1/health returns a healthy envelope", async () => {
+		const res = await makeAPIRequest<{ status: string; uptime: number }>(API.getApp(), "/v1/health", {
 			method: "GET",
 			expectedBodySchema: z.object({ status: z.literal("ok"), uptime: z.number() }),
 		});

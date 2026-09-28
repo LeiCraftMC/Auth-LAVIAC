@@ -1,26 +1,27 @@
-/**
- * AuthHandler — opaque bearer-token sessions (docs/10-auth.md).
- *
- * Tokens have the shape `<prefix>_sess_<id>:<base>`:
- *   - `id`   — 32 random bytes hex; the `sessions` row primary key, so the lookup is O(1).
- *   - `base` — 32 random bytes hex; stored only as a `Bun.password` hash and returned to
- *     the client exactly once (browser cookie / bearer header).
- * Nothing in the token is meaningful to a client and nothing signed is trusted — the
- * token is re-resolved against the DB on every request.
- */
 import { randomBytes } from "node:crypto";
-import { eq, lt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { Context } from "hono";
-import { getCookie } from "hono/cookie";
 import { DB } from "../../db";
+import type { DrizzleDB } from "../../db/utils";
 import { ConfigHandler } from "../../utils/config";
 import { AppConstants } from "../../utils/constants";
-import { Logger } from "../../utils/logger";
 import type { UserAccountSettings } from "./shared-models/accountData";
 
+// Opaque bearer-token auth. Token shape: `<prefix><id>:<base>`
+//   prefix — SESSION_TOKEN_PREFIX (carries the kind)
+//   id     — 32 random bytes hex; indexes the DB row
+//   base   — 32 random bytes hex; stored ONLY as Bun.password.hash(...)
+// The full token is handed to the client once at creation; the server re-resolves
+// it against the DB on every request (no JWT, no signed claims).
+
+/** LAVIAC: the session-token cookie set by the OIDC callback (docs/10-auth.md). */
 export const SESSION_COOKIE = `${AppConstants.APP_KEYS_PREFIX}_session_token`;
 
-/** A user as resolved by a login method, normalized before a session row is written. */
+/**
+ * A user as resolved by a login method, normalized before a session row is written —
+ * LAVIAC has no local users table: `sub` is the Zitadel subject (OIDC) or the
+ * configured username (static fallback).
+ */
 export interface SessionUser {
 	sub: string;
 	email: string | null;
@@ -29,39 +30,36 @@ export interface SessionUser {
 	method: UserAccountSettings.LoginMethod;
 }
 
-/** What `SessionHandler.createSession` hands back — the full token is included once. */
-export interface CreatedSession {
-	token: string;
-	expires_at: number;
-}
-
-export namespace AuthHandler {
-	export type AuthContext =
-		| {
-				type: "session";
-				/** Opaque token id — the `sessions` row primary key. */
-				id: string;
-				user_sub: string;
-				user_email: string | null;
-				user_name: string | null;
-				user_role: UserAccountSettings.Role;
-				login_method: UserAccountSettings.LoginMethod;
-		  }
-		| { type: "unauthenticated" };
-}
-
-/** Token primitives — generate, join, hash and verify (docs/10-auth.md). */
 export class AuthUtils {
+	/** 32 random bytes as a 64-char hex string — used as the token id (DB row key). */
 	static createRandomTokenID() {
 		return randomBytes(32).toString("hex");
 	}
 
+	/** 32 random bytes as a 64-char hex string — the secret half, stored only hashed. */
 	static createBaseToken() {
 		return randomBytes(32).toString("hex");
 	}
 
-	static getFullToken(prefix: string, tokenID: string, tokenBase: string) {
+	static getFullToken(prefix: AuthHandler.TOKEN_PREFIX, tokenID: string, tokenBase: string) {
 		return `${prefix}${tokenID}:${tokenBase}`;
+	}
+
+	/** Split a full token into prefix/id/base, or null if the shape is wrong. */
+	static getTokenParts(fullToken: string) {
+		const parts = fullToken.split(":") as [string, string];
+		if (parts.length !== 2) {
+			return null;
+		}
+		if (parts[0].startsWith(SessionHandler.SESSION_TOKEN_PREFIX)) {
+			return {
+				prefix: SessionHandler.SESSION_TOKEN_PREFIX,
+				id: parts[0].substring(SessionHandler.SESSION_TOKEN_PREFIX.length),
+				base: parts[1],
+			} satisfies AuthHandler.TokenParts;
+		} else {
+			return null;
+		}
 	}
 
 	static hashTokenBase(tokenBase: string) {
@@ -73,32 +71,19 @@ export class AuthUtils {
 	}
 }
 
-/** Session lifecycle — create, invalidate, purge. */
 export class SessionHandler {
 	static readonly SESSION_TOKEN_PREFIX = `${AppConstants.APP_KEYS_PREFIX}_sess_`;
 
-	/** Split a full token into `{ id, base }`; null when the shape or prefix is wrong. */
-	static parseToken(token: string): { id: string; base: string } | null {
-		if (!token.startsWith(this.SESSION_TOKEN_PREFIX)) return null;
-		const rest = token.slice(this.SESSION_TOKEN_PREFIX.length);
-		const separator = rest.indexOf(":");
-		if (separator <= 0) return null;
-		return { id: rest.slice(0, separator), base: rest.slice(separator + 1) };
-	}
-
-	/** Create a session row for a verified user; the full token is returned exactly once. */
-	static async createSession(user: SessionUser): Promise<CreatedSession> {
-		const config = ConfigHandler.getConfig();
-		// docs/10-auth.md default: sessions expire after 7 days (deleted on access once expired).
-		const ttlHours = config.LAVIAC_SESSION_TTL_HOURS
-			? Number(config.LAVIAC_SESSION_TTL_HOURS)
-			: 7 * 24;
-
+	static async createSession(user: SessionUser, tx: DrizzleDB = DB.instance()) {
 		const tokenID = AuthUtils.createRandomTokenID();
 		const tokenBase = AuthUtils.createBaseToken();
-		const expires_at = Date.now() + ttlHours * 60 * 60 * 1000;
 
-		await DB.instance()
+		const fullToken = AuthUtils.getFullToken(this.SESSION_TOKEN_PREFIX, tokenID, tokenBase);
+
+		// docs/10-auth.md default: 7 days; LAVIAC_SESSION_TTL_HOURS overrides.
+		const ttlHours = ConfigHandler.getConfig()?.SESSION_TTL_HOURS ?? 7 * 24;
+
+		const result = await tx
 			.insert(DB.Tables.sessions)
 			.values({
 				id: tokenID,
@@ -108,96 +93,158 @@ export class SessionHandler {
 				user_name: user.name,
 				user_role: user.role,
 				login_method: user.method,
-				expires_at,
-			});
+				expires_at: Date.now() + ttlHours * 60 * 60 * 1000,
+			})
+			.returning()
+			.get();
 
 		return {
-			token: AuthUtils.getFullToken(this.SESSION_TOKEN_PREFIX, tokenID, tokenBase),
-			expires_at,
-		};
+			token: fullToken,
+			user_sub: result.user_sub,
+			user_email: result.user_email,
+			user_name: result.user_name,
+			user_role: result.user_role,
+			login_method: result.login_method,
+			created_at: result.created_at,
+			expires_at: result.expires_at,
+		} satisfies Omit<DB.Models.Session, "id" | "hashed_token"> & { token: string };
 	}
 
-	static async inValidateSession(tokenID: string): Promise<void> {
-		await DB.instance().delete(DB.Tables.sessions).where(eq(DB.Tables.sessions.id, tokenID));
+	static async getSession(tokenParts: AuthHandler.TokenParts, tx: DrizzleDB = DB.instance()) {
+		if (!tokenParts.prefix.startsWith(this.SESSION_TOKEN_PREFIX)) {
+			return null;
+		}
+
+		const session = await tx
+			.select()
+			.from(DB.Tables.sessions)
+			.where(eq(DB.Tables.sessions.id, tokenParts.id))
+			.get();
+		if (!session) {
+			return null;
+		}
+
+		if (!(await AuthUtils.verifyHashedTokenBase(tokenParts.base, session.hashed_token))) {
+			return null;
+		}
+
+		return session;
 	}
 
-	static async cleanupExpired(): Promise<void> {
-		await DB.instance()
-			.delete(DB.Tables.sessions)
-			.where(lt(DB.Tables.sessions.expires_at, Date.now()));
-		Logger.debug("Expired sessions purged.");
+	static async isValidSession(session: DB.Models.Session, tx: DrizzleDB = DB.instance()) {
+		if (!session) {
+			return false;
+		}
+
+		if (session.expires_at < Date.now()) {
+			// Delete expired session
+			await tx.delete(DB.Tables.sessions).where(eq(DB.Tables.sessions.id, session.id));
+
+			return false;
+		}
+
+		return true;
+	}
+
+	static async inValidateSession(tokenID: string, tx: DrizzleDB = DB.instance()) {
+		await tx.delete(DB.Tables.sessions).where(eq(DB.Tables.sessions.id, tokenID));
 	}
 }
 
 export class AuthHandler {
-	static async resolveRequest(c: Context): Promise<AuthHandler.AuthContext> {
-		const token = AuthHandler.extractToken(c);
-		if (!token) return { type: "unauthenticated" };
-
-		const parsed = SessionHandler.parseToken(token);
-		if (!parsed) return { type: "unauthenticated" };
-
-		let row: DB.Models.Session | undefined;
-		try {
-			const rows = await DB.instance()
-				.select()
-				.from(DB.Tables.sessions)
-				.where(eq(DB.Tables.sessions.id, parsed.id))
-				.limit(1);
-			row = rows[0];
-		} catch {
-			// DB unavailable / not yet migrated — no session can be resolved.
-			Logger.debug("Session lookup failed; treating as unauthenticated.");
-			return { type: "unauthenticated" };
+	static getTokenType(token: string) {
+		if (token.startsWith(SessionHandler.SESSION_TOKEN_PREFIX)) {
+			return "session";
+		} else {
+			return "unknown";
 		}
-
-		if (!row) return { type: "unauthenticated" };
-
-		if (row.expires_at <= Date.now()) {
-			// purge the expired row on access (docs/10-auth.md)
-			await SessionHandler.inValidateSession(row.id);
-			return { type: "unauthenticated" };
-		}
-
-		if (!(await AuthUtils.verifyHashedTokenBase(parsed.base, row.hashed_token))) {
-			return { type: "unauthenticated" };
-		}
-
-		return {
-			type: "session",
-			id: row.id,
-			user_sub: row.user_sub,
-			user_email: row.user_email,
-			user_name: row.user_name,
-			user_role: row.user_role,
-			login_method: row.login_method,
-		};
 	}
 
-	/**
-	 * Read the authContext that the global middleware stashed on the request.
-	 * The Hono app is untyped (a typed Variables generic conflicts with
-	 * APIVersionRouter's `HonoBase` routes), so the value is read dynamically.
-	 */
-	static getAuthContext(c: Context): AuthHandler.AuthContext {
-		return (
-			((c as any).get("authContext") as AuthHandler.AuthContext | undefined) ?? {
-				type: "unauthenticated",
+	/** Resolve a bearer token into a session auth context, or null. */
+	static async getAuthContext(
+		fullToken: string,
+		tx: DrizzleDB = DB.instance(),
+	): Promise<AuthHandler.AuthenticatedAuthContext | null> {
+		const tokenParts = AuthUtils.getTokenParts(fullToken);
+		if (!tokenParts) {
+			return null;
+		}
+
+		switch (this.getTokenType(fullToken)) {
+			case "session": {
+				const session = await SessionHandler.getSession(tokenParts, tx);
+				if (!session) {
+					return null;
+				}
+				return {
+					type: "session" as const,
+					...session,
+				};
 			}
-		);
-	}
-
-	/** Stash the authContext on the request for handlers to read via `getAuthContext`. */
-	static setAuthContext(c: Context, ctx: AuthHandler.AuthContext): void {
-		(c as any).set("authContext", ctx);
-	}
-
-	private static extractToken(c: Context): string | null {
-		const header = c.req.header("Authorization") ?? "";
-		if (header.startsWith("Bearer ")) {
-			return header.slice(7);
+			default:
+				return null;
 		}
-		const cookie = getCookie(c, SESSION_COOKIE);
-		return cookie ?? null;
+	}
+
+	static async isValidAuthContext(
+		authContext: AuthHandler.AuthContext,
+		tx: DrizzleDB = DB.instance(),
+	): Promise<boolean> {
+		switch (authContext.type) {
+			case "session":
+				return await SessionHandler.isValidSession(authContext, tx);
+			default:
+				return false;
+		}
+	}
+
+	static async invalidateAuthContext(
+		authContext: AuthHandler.AuthContext,
+		tx: DrizzleDB = DB.instance(),
+	): Promise<void> {
+		switch (authContext.type) {
+			case "session":
+				await SessionHandler.inValidateSession(authContext.id, tx);
+				break;
+		}
+	}
+}
+
+export namespace AuthHandler {
+	export type TOKEN_PREFIX = typeof SessionHandler.SESSION_TOKEN_PREFIX;
+
+	export type AuthenticatedAuthContext = SessionAuthContext;
+	export type AuthContext = AuthenticatedAuthContext | UnauthenticatedAuthContext;
+
+	export interface SessionAuthContext extends DB.Models.Session {
+		readonly type: "session";
+	}
+
+	export interface UnauthenticatedAuthContext {
+		readonly type: "unauthenticated";
+	}
+
+	export interface TokenParts {
+		readonly prefix: TOKEN_PREFIX;
+		readonly id: string;
+		readonly base: string;
+	}
+}
+
+export namespace AuthHandler.AuthContext {
+	export function get(c: Context): AuthHandler.AuthContext {
+		const authContext = c.get("authContext") as AuthHandler.AuthContext | undefined;
+		if (!authContext) {
+			throw new Error("Auth context not set in context");
+		}
+		return authContext;
+	}
+
+	export function getAsSession(c: Context): AuthHandler.SessionAuthContext {
+		return AuthHandler.AuthContext.get(c) as AuthHandler.SessionAuthContext;
+	}
+
+	export function set(c: Context, authContext: AuthHandler.AuthContext) {
+		return c.set("authContext", authContext);
 	}
 }

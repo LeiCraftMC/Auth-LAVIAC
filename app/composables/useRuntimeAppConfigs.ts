@@ -1,6 +1,9 @@
 /**
  * useRuntimeAppConfigs — typed access to publicRuntimeConfig.
- * Copied from Style-Guides shared/frontend/useRuntimeAppConfigs.ts. See docs/05-api-contract.md.
+ *
+ * The template exposes `apiUrl` and `appUrl` from `nuxt.config.ts` under `publicRuntimeConfig`.
+ * This composable wraps them with safe fallbacks for SSR and client.
+ * See docs/05-api-contract.md and docs/07-state-and-data.md.
  */
 export function useRuntimeAppConfigs() {
 	const config = useRuntimeConfig();

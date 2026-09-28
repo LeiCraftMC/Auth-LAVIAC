@@ -7,6 +7,15 @@ import type {
 	PostInstancesResponses,
 } from "~/api-client";
 
+/** The signed-in admin, returned by GET /auth/me. */
+export type UserInfo = {
+	sub: string;
+	email: string | null;
+	name: string | null;
+	role: "admin" | "member";
+	login_method: "oidc" | "static";
+};
+
 export type InstanceDomain = GetInstancesByInstanceIdDomainsResponses[200]["data"];
 
 export type Instance = GetInstancesByIdResponses[200]["data"];

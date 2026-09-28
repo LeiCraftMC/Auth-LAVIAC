@@ -132,8 +132,8 @@ describe("static auth", () => {
 
 	it("rate-limits repeated failures per username (429 + Retry-After)", async () => {
 		// A distinct username so earlier tests' attempts are not counted.
-		const attempts = 10; // LOGIN_MAX_ATTEMPTS in routes/auth/index.ts
-		for (let i = 0; i < attempts; i++) {
+		const maxAttempts = 5; // LOGIN_MAX_ATTEMPTS in routes/auth/index.ts
+		for (let i = 0; i < maxAttempts; i++) {
 			await makeAPIRequest(
 				API.getApp(),
 				"/v1/auth/login",

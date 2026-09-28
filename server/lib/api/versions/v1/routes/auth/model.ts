@@ -22,8 +22,15 @@ export namespace AuthModel {
 		});
 		export type Body = z.infer<typeof Body>;
 
+		/** The session row plus the full opaque token, returned exactly once. */
 		export const Response = z.object({
 			token: z.string(),
+			user_sub: z.string(),
+			user_email: z.string().nullable(),
+			user_name: z.string().nullable(),
+			user_role: UserAccountSettings.Role,
+			login_method: UserAccountSettings.LoginMethod,
+			created_at: z.number(),
 			expires_at: z.number(),
 		});
 		export type Response = z.infer<typeof Response>;

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteInstancesByIdData, DeleteInstancesByIdErrors, DeleteInstancesByIdResponses, DeleteInstancesByInstanceIdDomainsByDomainData, DeleteInstancesByInstanceIdDomainsByDomainErrors, DeleteInstancesByInstanceIdDomainsByDomainResponses, DeleteInstancesByInstanceIdLimitsData, DeleteInstancesByInstanceIdLimitsErrors, DeleteInstancesByInstanceIdLimitsResponses, GetAuthCallbackData, GetAuthLoginData, GetAuthMeData, GetAuthMeErrors, GetAuthMeResponses, GetAuthMethodsData, GetAuthMethodsResponses, GetDomainsByDomainExistsData, GetDomainsByDomainExistsErrors, GetDomainsByDomainExistsResponses, GetIndexData, GetIndexResponses, GetInstancesByIdData, GetInstancesByIdErrors, GetInstancesByIdResponses, GetInstancesByInstanceIdDomainsData, GetInstancesByInstanceIdDomainsErrors, GetInstancesByInstanceIdDomainsResponses, GetInstancesData, GetInstancesErrors, GetInstancesResponses, PostAuthLoginData, PostAuthLoginErrors, PostAuthLoginResponses, PostAuthLogoutData, PostAuthLogoutResponses, PostInstancesByInstanceIdDomainsData, PostInstancesByInstanceIdDomainsErrors, PostInstancesByInstanceIdDomainsResponses, PostInstancesByInstanceIdDomainsSetPrimaryData, PostInstancesByInstanceIdDomainsSetPrimaryErrors, PostInstancesByInstanceIdDomainsSetPrimaryResponses, PostInstancesData, PostInstancesErrors, PostInstancesResponses, PutInstancesByIdData, PutInstancesByIdErrors, PutInstancesByIdResponses, PutInstancesByInstanceIdLimitsData, PutInstancesByInstanceIdLimitsErrors, PutInstancesByInstanceIdLimitsResponses } from './types.gen';
+import type { DeleteInstancesByIdData, DeleteInstancesByIdErrors, DeleteInstancesByIdResponses, DeleteInstancesByInstanceIdDomainsByDomainData, DeleteInstancesByInstanceIdDomainsByDomainErrors, DeleteInstancesByInstanceIdDomainsByDomainResponses, DeleteInstancesByInstanceIdLimitsData, DeleteInstancesByInstanceIdLimitsErrors, DeleteInstancesByInstanceIdLimitsResponses, GetAuthCallbackData, GetAuthLoginData, GetAuthMeData, GetAuthMeErrors, GetAuthMeResponses, GetAuthMethodsData, GetAuthMethodsResponses, GetDomainsByDomainExistsData, GetDomainsByDomainExistsErrors, GetDomainsByDomainExistsResponses, GetHealthData, GetHealthResponses, GetInstancesByIdData, GetInstancesByIdErrors, GetInstancesByIdResponses, GetInstancesByInstanceIdDomainsData, GetInstancesByInstanceIdDomainsErrors, GetInstancesByInstanceIdDomainsResponses, GetInstancesData, GetInstancesErrors, GetInstancesResponses, PostAuthLoginData, PostAuthLoginErrors, PostAuthLoginResponses, PostAuthLogoutData, PostAuthLogoutErrors, PostAuthLogoutResponses, PostInstancesByInstanceIdDomainsData, PostInstancesByInstanceIdDomainsErrors, PostInstancesByInstanceIdDomainsResponses, PostInstancesByInstanceIdDomainsSetPrimaryData, PostInstancesByInstanceIdDomainsSetPrimaryErrors, PostInstancesByInstanceIdDomainsSetPrimaryResponses, PostInstancesData, PostInstancesErrors, PostInstancesResponses, PutInstancesByIdData, PutInstancesByIdErrors, PutInstancesByIdResponses, PutInstancesByInstanceIdLimitsData, PutInstancesByInstanceIdLimitsErrors, PutInstancesByInstanceIdLimitsResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -23,7 +23,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
  *
  * Returns the service health status.
  */
-export const getIndex = <ThrowOnError extends boolean = false>(options?: Options<GetIndexData, ThrowOnError>): RequestResult<GetIndexResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetIndexResponses, unknown, ThrowOnError>({ url: '/', ...options });
+export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>): RequestResult<GetHealthResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetHealthResponses, unknown, ThrowOnError>({ url: '/health', ...options });
 
 /**
  * Begin OIDC login
@@ -63,9 +63,9 @@ export const getAuthMethods = <ThrowOnError extends boolean = false>(options?: O
 /**
  * Log out
  *
- * Destroys the current session and clears the session cookie.
+ * Invalidate the current session and clear the session cookie.
  */
-export const postAuthLogout = <ThrowOnError extends boolean = false>(options?: Options<PostAuthLogoutData, ThrowOnError>): RequestResult<PostAuthLogoutResponses, unknown, ThrowOnError> => (options?.client ?? client).post<PostAuthLogoutResponses, unknown, ThrowOnError>({
+export const postAuthLogout = <ThrowOnError extends boolean = false>(options?: Options<PostAuthLogoutData, ThrowOnError>): RequestResult<PostAuthLogoutResponses, PostAuthLogoutErrors, ThrowOnError> => (options?.client ?? client).post<PostAuthLogoutResponses, PostAuthLogoutErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/auth/logout',
     ...options

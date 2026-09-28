@@ -1,7 +1,3 @@
-/**
- * Logger — leveled logging with ISO timestamps.
- * Copied from Style-Guides shared/backend/logger.ts.
- */
 export class Logger {
 	private static readonly logLevelMap = {
 		debug: 0,
@@ -14,49 +10,49 @@ export class Logger {
 	private static logLevel: (typeof this.logLevelMap)[Logger.LogLevel] = this.logLevelMap.info;
 
 	static setLogLevel(level: Logger.LogLevel) {
-		if (Logger.logLevelMap[level] === undefined) {
+		if (this.logLevelMap[level] === undefined) {
 			throw new Error(`Invalid log level: ${level}`);
 		}
-		Logger.logLevel = Logger.logLevelMap[level];
+		this.logLevel = this.logLevelMap[level];
 	}
 
 	static getLogLevel(): Logger.LogLevel {
-		const match = Object.entries(Logger.logLevelMap).find(([, value]) => value === Logger.logLevel);
+		const match = Object.entries(this.logLevelMap).find(([_, value]) => value === this.logLevel);
 		return (match ? match[0] : "info") as Logger.LogLevel;
 	}
 
-	static debug(...args: unknown[]) {
-		if (Logger.logLevel <= Logger.logLevelMap.debug) {
+	static debug(...args: any[]) {
+		if (this.logLevel <= this.logLevelMap.debug) {
 			console.debug(`[${new Date(Date.now()).toISOString()}]`, "[DEBUG]", ...args);
 		}
 	}
 
-	static log(...args: unknown[]) {
-		if (Logger.logLevel <= Logger.logLevelMap.info) {
+	static log(...args: any[]) {
+		if (this.logLevel <= this.logLevelMap.info) {
 			console.log(`[${new Date(Date.now()).toISOString()}]`, "[INFO]", ...args);
 		}
 	}
 
-	static info(...args: unknown[]) {
-		if (Logger.logLevel <= Logger.logLevelMap.info) {
+	static info(...args: any[]) {
+		if (this.logLevel <= this.logLevelMap.info) {
 			console.info(`[${new Date(Date.now()).toISOString()}]`, "[INFO]", ...args);
 		}
 	}
 
-	static warn(...args: unknown[]) {
-		if (Logger.logLevel <= Logger.logLevelMap.warn) {
+	static warn(...args: any[]) {
+		if (this.logLevel <= this.logLevelMap.warn) {
 			console.warn(`[${new Date(Date.now()).toISOString()}]`, "[WARN]", ...args);
 		}
 	}
 
-	static error(...args: unknown[]) {
-		if (Logger.logLevel <= Logger.logLevelMap.error) {
+	static error(...args: any[]) {
+		if (this.logLevel <= this.logLevelMap.error) {
 			console.error(`[${new Date(Date.now()).toISOString()}]`, "[ERROR]", ...args);
 		}
 	}
 
-	static critical(...args: unknown[]) {
-		if (Logger.logLevel <= Logger.logLevelMap.critical) {
+	static critical(...args: any[]) {
+		if (this.logLevel <= this.logLevelMap.critical) {
 			console.error(`[${new Date(Date.now()).toISOString()}]`, "[CRITICAL]", ...args);
 		}
 	}

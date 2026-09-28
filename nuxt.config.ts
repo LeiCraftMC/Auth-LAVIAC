@@ -1,6 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-	compatibilityDate: "2026-08-20",
+	compatibilityDate: "2026-09-01",
 	devtools: { enabled: true },
 	modules: ["@nuxt/ui"],
 
@@ -11,7 +11,9 @@ export default defineNuxtConfig({
 	},
 
 	ssr: true,
+
 	css: ["~/assets/css/main.css"],
+
 	nitro: {
 		rollupConfig: { external: ["bun:sqlite"] },
 
@@ -26,13 +28,19 @@ export default defineNuxtConfig({
 			},
 		},
 	},
+
 	runtimeConfig: {
 		public: {
 			appUrl: process.env.LAVIAC_APP_URL || "http://localhost:12191",
 		},
 	},
+
+	// docs/06-frontend-nuxt.md: client-only for the guarded dashboard/auth pages,
+	// SSR for everything else. LAVIAC's only public page is the `/` redirect.
 	routeRules: {
-		"/**": { ssr: false },
+		"/instances/**": { ssr: false },
+		"/auth/**": { ssr: false },
+		"/**": { ssr: true },
 	},
 
 	telemetry: false,

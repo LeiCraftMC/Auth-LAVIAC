@@ -1,7 +1,3 @@
-/**
- * SimpleRouteMatcher — Nuxt-style `[param]` route matching for allowlists.
- * Copied from Style-Guides shared/frontend/routeMatcher.ts. See docs/06-frontend-nuxt.md.
- */
 type RouteMatch = {
 	route: string;
 	params: Record<string, string>;
@@ -39,12 +35,14 @@ export class SimpleRouteMatcher {
 			}
 		}
 
+		// 1) Exact match for static routes
 		for (const route of staticRoutes) {
 			if (route === normalizedPath) {
 				return { route, params: {} };
 			}
 		}
 
+		// 2) Dynamic routes
 		for (const route of dynamicRoutes) {
 			const paramNames: string[] = [];
 

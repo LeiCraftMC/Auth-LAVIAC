@@ -1,6 +1,11 @@
 /**
  * useAPI — the single gateway to the generated API SDK.
- * Copied from Style-Guides shared/frontend/useAPI.ts. See docs/07-state-and-data.md.
+ *
+ * On the server it wraps the call in `useAsyncData`; on the client it reads the session cookie,
+ * applies it to the generated client via `updateAPIClient`, redirects to `/auth/login` on a missing
+ * or 401 token, and always returns the backend's `{ success, code, message, data }` envelope
+ * (errors are normalized into the envelope, never thrown). Callers branch on `result.success`.
+ * See docs/07-state-and-data.md.
  */
 import * as baseAPIClient from "@/api-client/sdk.gen";
 
@@ -17,7 +22,7 @@ export namespace UseAPITypes {
 	/**
 	 * Extract the envelope payload type from a `@hey-api/client-fetch` RequestResult.
 	 * client-fetch resolves to `{ data?: <envelope>, error?: <envelope>, ... }`; the
-	 * envelope's `data` field is the actual payload.
+	 * envelope's `data` field is the actual payload (see the `unwrap` helper below).
 	 */
 	export type EnvelopeData<W> = W extends { data?: infer Env }
 		? NonNullable<Env> extends { data?: infer D }
@@ -58,11 +63,15 @@ class AsyncRequestTaskWrapper<TReturn> {
 }
 
 class LazyAsyncDataRequestWrapper<TReturn> {
+	// 1. The public read-only refs (computed)
 	readonly data: Ref<TReturn | null>;
 	readonly loading: Ref<boolean>;
 
+	// 2. Internal pointers (plain class properties, NOT refs themselves)
 	protected _activeDataRef: Ref<TReturn | null> | null = null;
 	protected _activeLoadingRef: Ref<boolean> | null = null;
+
+	// 3. The "signal" — determines which pointer we are looking at
 	protected _linkSignal = ref(0);
 
 	protected refreshFunction?: () => Promise<void>;
@@ -73,6 +82,7 @@ class LazyAsyncDataRequestWrapper<TReturn> {
 		protected readonly handler: () => Promise<TReturn>,
 		immediateFNInit: boolean,
 	) {
+		// Initialize the computed properties ONCE
 		this.data = computed({
 			get: () => {
 				this._linkSignal.value;
@@ -96,6 +106,7 @@ class LazyAsyncDataRequestWrapper<TReturn> {
 	}
 
 	public init() {
+		// Do not re-run init if already initialized to avoid replacing refs unnecessarily
 		if (this.refreshFunction) return;
 
 		const { data, refresh, clear, pending } = useLazyAsyncData<TReturn>(this.name, this.handler, {
@@ -108,6 +119,7 @@ class LazyAsyncDataRequestWrapper<TReturn> {
 		this.refreshFunction = refresh;
 		this.clearFunction = clear;
 
+		// Trigger the signal so the computed properties re-evaluate and find the new refs.
 		this._linkSignal.value++;
 	}
 
@@ -129,15 +141,14 @@ class LazyAsyncDataRequestWrapper<TReturn> {
 	}
 }
 
+// LAVIAC divergence (see openapi-ts.config.ts): the generated client is `@hey-api/client-fetch`,
+// so each call resolves to `{ data?, error? }` — unwrap to the envelope before branching on it.
+const unwrap = (raw: any): any => raw?.data ?? raw?.error ?? raw;
+
 export async function useAPI<TReturn>(
 	handler: (api: UseAPITypes.APIClient) => Promise<TReturn>,
 	disableAuthRedirect = false,
 ): Promise<UseAPITypes.Envelope<UseAPITypes.EnvelopeData<TReturn>>> {
-	// `@hey-api/client-fetch` resolves to `{ data, error, request?, response? }`.
-	// The LAVIAC backend always returns the `{ success, code, message, data }` envelope,
-	// so the envelope is in `raw.data` on success and `raw.error` on failure — unwrap it.
-	const unwrap = (raw: any): any => raw?.data ?? raw?.error ?? raw;
-
 	try {
 		if (import.meta.server) {
 			const sessionToken = useAppCookies().sessionToken.get().value;
@@ -157,9 +168,7 @@ export async function useAPI<TReturn>(
 
 			const result = unwrap(await handler(baseAPIClient));
 
-			// docs/10-auth.md: redirect on ANY 401 — an older message-matching approach
-			// drifted out of sync with backend messages and silently stopped firing.
-			if (result?.success === false && result?.code === 401) {
+			if ((result as any)?.success === false && (result as any)?.code === 401) {
 				updateAPIClient(null);
 				sessionToken.value = null;
 				if (!disableAuthRedirect) {

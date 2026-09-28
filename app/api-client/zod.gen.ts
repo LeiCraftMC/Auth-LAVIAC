@@ -5,7 +5,7 @@ import * as z from 'zod';
 /**
  * Service is healthy
  */
-export const zGetIndexResponse = z.object({
+export const zGetHealthResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
     message: z.literal('Service is healthy'),
@@ -29,6 +29,12 @@ export const zPostAuthLoginResponse = z.object({
     message: z.literal('Login successful'),
     data: z.object({
         token: z.string(),
+        user_sub: z.string(),
+        user_email: z.string().nullable(),
+        user_name: z.string().nullable(),
+        user_role: z.enum(['admin', 'member']),
+        login_method: z.enum(['oidc', 'static']),
+        created_at: z.number(),
         expires_at: z.number()
     })
 });

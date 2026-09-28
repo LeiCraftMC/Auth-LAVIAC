@@ -1,26 +1,36 @@
+/**
+ * useUserInfoStore — the signed-in admin (`GET /auth/me`), cached in `useState`.
+ *
+ * Auto-fetches on the first `use()` and resolves to `null` without a valid session. `useAPI`
+ * runs with the auth redirect disabled so `auth.global.ts` decides where to send the user.
+ * Call `clear()` on logout. See docs/07-state-and-data.md.
+ */
 import { BasicAbstractStore } from "~/utils/abstractStore";
+import type { UserInfo } from "~/utils/types";
 
-export interface AdminUser {
-	sub: string;
-	email: string | null;
-	name: string | null;
-	role: "admin" | "member";
-	login_method: "oidc" | "static";
-}
-
-class UserStore extends BasicAbstractStore<AdminUser> {
+class UserInfoStore extends BasicAbstractStore<UserInfo> {
 	constructor() {
-		super("laviac-user", { enableAutoFetchIfEmpty: true });
+		super("userInfo", {
+			enableAutoFetchIfEmpty: true,
+		});
 	}
 
-	protected async fetchData() {
-		// No session cookie → no point hitting /auth/me (it would 401 and trigger a redirect).
-		if (!useAppCookies().sessionToken.get().value) return null;
-		const result = await useAPI((api) => api.getAuthMe({}), true);
-		return result.success ? (result.data as AdminUser) : null;
+	protected override async fetchData() {
+		if (!useAppCookies().sessionToken.get().value) {
+			return null;
+		}
+
+		const response = await useAPI((api) => api.getAuthMe({}), true);
+		if (!response.success) {
+			return null;
+		}
+
+		// The client-fetch envelope payload type is wider than UserInfo (see useAPI's
+		// EnvelopeData); the backend model (AuthModel.Me.Response) guarantees the shape.
+		return response.data as UserInfo;
 	}
 }
 
-export function useUserStore() {
-	return new UserStore();
+export function useUserInfoStore() {
+	return new UserInfoStore();
 }

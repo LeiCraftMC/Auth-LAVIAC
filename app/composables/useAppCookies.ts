@@ -1,12 +1,23 @@
 /**
  * useAppCookies — typed session-cookie accessor.
- * Copied from Style-Guides shared/frontend/useAppCookies.ts; prefix set to `laviac_`.
- * See docs/07-state-and-data.md and docs/10-auth.md.
+ *
+ * `AppCookie` wraps `useCookie` so callers do `useAppCookies().sessionToken.get().value` /
+ * `.set(value, options?)`. The cookie name uses the project's `laviac` prefix — keep it in
+ * sync with the backend's token prefix (`AppConstants.APP_KEYS_PREFIX`). The session cookie
+ * defaults to `secure; sameSite=lax; httpOnly=false` so the client can read it to feed
+ * `updateAPIClient` (see docs/10-auth.md#frontend-session-handling).
  */
 import type { CookieOptions } from "#app";
 
 type CookieOptionsWithoutReadonly<T> = CookieOptions<T> & {
 	readonly?: false;
+};
+
+const SESSION_COOKIE_OPTIONS: CookieOptionsWithoutReadonly<string | null> = {
+	path: "/",
+	secure: true, // allowed on localhost; required in prod
+	sameSite: "lax",
+	httpOnly: false, // the client must read the token to attach it to the SDK
 };
 
 class AppCookie<T extends string | null | undefined> {
@@ -19,23 +30,14 @@ class AppCookie<T extends string | null | undefined> {
 		return useCookie(this.name);
 	}
 
-	set(value: T) {
-		useCookie(this.name, this.options as CookieOptionsWithoutReadonly<T> | undefined).value = value;
+	set(value: T, options?: CookieOptionsWithoutReadonly<T>) {
+		const merged = { ...this.options, ...options } as CookieOptionsWithoutReadonly<T> | undefined;
+		useCookie(this.name, merged).value = value;
 	}
 }
 
 export function useAppCookies() {
-	// docs/10-auth.md: `httpOnly: false` — the client must read the token to attach it as
-	// `Authorization: Bearer` via updateAPIClient. LAVIAC sets `secure` dynamically (from
-	// LAVIAC_APP_URL) so the cookie also works on plain-http local development — recorded
-	// as a divergence in AGENTS.md.
-	const sessionCookieOptions: CookieOptionsWithoutReadonly<string | null> = {
-		path: "/",
-		sameSite: "lax",
-		httpOnly: false,
-		secure: useRuntimeAppConfigs().appUrl.startsWith("https://"),
-	};
 	return {
-		sessionToken: new AppCookie<string | null>("laviac_session_token", sessionCookieOptions),
+		sessionToken: new AppCookie<string | null>("laviac_session_token", SESSION_COOKIE_OPTIONS),
 	} as const;
 }

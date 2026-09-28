@@ -1,6 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.5.11/schema.json",
-	"root": true,
+	"$schema": "https://biomejs.dev/schemas/2.5.9/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -17,6 +16,7 @@
 			"**/*.vue",
 			"**/*.css",
 			"!**/node_modules",
+			"!**/.bun",
 			"!**/.nuxt",
 			"!**/.output",
 			"!**/.nitro",
@@ -25,15 +25,13 @@
 			"!**/build",
 			"!**/.git",
 			"!**/*.gen.ts",
-			"!**/api-client",
-			"!**/bun.lock",
-			"!**/bun.lockb",
-			"!**/templates"
+			"!**/api-client"
 		]
 	},
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "tab",
+		"indentWidth": 1,
 		"lineWidth": 100
 	},
 	"linter": {
@@ -57,7 +55,9 @@
 			"quoteStyle": "double",
 			"semicolons": "always",
 			"trailingCommas": "all",
-			"jsxQuoteStyle": "double"
+			"jsxQuoteStyle": "double",
+			"bracketSpacing": true,
+			"expand": "auto"
 		}
 	},
 	"css": {

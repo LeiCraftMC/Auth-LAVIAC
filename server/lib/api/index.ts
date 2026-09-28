@@ -1,18 +1,21 @@
 import { Scalar } from "@scalar/hono-api-reference";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { prettyJSON } from "hono/pretty-json";
 import { openAPIRouteHandler } from "hono-openapi";
+import { AppConstants } from "../utils/constants";
 import { Logger } from "../utils/logger";
 import type { APIVersionRouter } from "./utils/apiVersionRouter";
 import { APIv1Router } from "./versions/v1";
 
 export class API {
-	protected static app: Hono | undefined;
+	protected static server: Bun.Server<undefined> | null = null;
+	protected static app: Hono | null;
 
 	protected static latestVersion: number | null = null;
 
-	protected static registerVersion(versionRouter: APIVersionRouter, disableDocs: boolean = false) {
+	protected static registerVersion(versionRouter: APIVersionRouter, disableDocs: boolean) {
 		if (!this.app) {
 			throw new Error("API not initialized. Call API.init() first.");
 		}
@@ -36,12 +39,29 @@ export class API {
 		}
 	}
 
-	static async init(disableDocs = false) {
+	/**
+	 * Build the Hono app: prettyJSON, CORS (allow the frontend origins), error handler,
+	 * versioned routes, docs, /health, and a `/` redirect to the latest docs. Does NOT
+	 * call Bun.serve under Nitro — the catch-all route mounts `getApp()` at /api
+	 * (see docs/04-backend-hono.md, "Mounting Hono in Nitro").
+	 */
+	static async init(frontendUrls: string[], disableDocs: boolean) {
 		this.app = new Hono();
 
 		this.app.use(prettyJSON());
 
-		this.app.onError(async (err, c) => {
+		this.app.use(
+			"*",
+			cors({
+				origin: frontendUrls,
+				allowHeaders: ["Content-Type", "Authorization"],
+				allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+				maxAge: 600,
+				credentials: true,
+			}),
+		);
+
+		this.app.onError((err, c) => {
 			if (err instanceof HTTPException) {
 				// Return only safe error metadata — never leak Zod validation details
 				return c.json(
@@ -54,7 +74,7 @@ export class API {
 				);
 			}
 
-			Logger.error("API Error:", err);
+			Logger.error("Unhandled API error:", err);
 			return c.json({ success: false, code: 500, message: "Internal Server Error" }, 500);
 		});
 
@@ -64,7 +84,7 @@ export class API {
 			return c.json({
 				success: true,
 				code: 200,
-				message: "LAVIAC API is running",
+				message: `${AppConstants.APP_NAME} API is running`,
 				data: null,
 			});
 		});
@@ -78,16 +98,23 @@ export class API {
 				return c.json({
 					success: true,
 					code: 200,
-					message: "LAVIAC API is running. Documentation is disabled.",
+					message: `${AppConstants.APP_NAME} API is running. Documentation is disabled.`,
 					data: null,
 				});
 			});
 		}
 	}
 
+	static async stop() {
+		if (this.server) {
+			this.server.stop();
+			Logger.log(`${AppConstants.APP_NAME} API server stopped.`);
+		}
+	}
+
 	static getApp(): Hono {
 		if (!this.app) {
-			throw new Error("API not initialized. Call API.init() first.");
+			throw new Error(`${AppConstants.APP_NAME} API not initialized. Call API.init() first.`);
 		}
 		return this.app;
 	}

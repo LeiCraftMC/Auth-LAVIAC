@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { API } from "../../server/lib/api";
 import { DB } from "../../server/lib/db";
-import { ConfigHandler, type ParsedConfig } from "../../server/lib/utils/config";
+import { ConfigHandler, type ENVConfigLike } from "../../server/lib/utils/config";
 
 /** Hash for the static-auth test password, computed once with Bun.password (argon2id). */
 export const STATIC_AUTH_TEST_PASSWORD = "static-auth-test-password";
@@ -21,7 +21,7 @@ function setTestEnv(rootDir: string) {
 		LAVIAC_CONFIG_BASE_DIR: rootDir,
 		LAVIAC_STATIC_AUTH_USERNAME: "admin",
 		LAVIAC_STATIC_AUTH_PASSWORD_HASH: STATIC_AUTH_TEST_HASH,
-	} as const satisfies Partial<ParsedConfig>;
+	} as const satisfies Partial<ENVConfigLike>;
 
 	for (const [key, value] of Object.entries(envVars)) {
 		process.env[key] = String(value);
@@ -60,8 +60,8 @@ beforeAll(async () => {
 	TMP_ROOT = await createIsolatedDataDir();
 	setTestEnv(TMP_ROOT);
 	await ConfigHandler.loadConfig();
-	await DB.init(path.join(TMP_ROOT, "db.sqlite"), true);
-	await API.init(true); // disable docs for the test harness
+	await DB.init(path.join(TMP_ROOT, "db.sqlite"), true, TMP_ROOT);
+	await API.init([], true); // disable docs for the test harness
 });
 
 afterAll(async () => {

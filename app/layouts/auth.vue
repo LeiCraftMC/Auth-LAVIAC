@@ -1,16 +1,20 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center main-bg-color p-4 text-slate-200">
-    <div class="w-full max-w-md">
-      <div class="mb-6 flex flex-col items-center gap-3">
-        <ImgAppLogo class="h-10 w-auto" />
-        <div class="text-center">
-          <h1 class="text-lg font-semibold text-white">LAVIAC</h1>
-          <p class="text-sm text-slate-400">LeiCraft_MC Auth Virtual Instance Admin Console</p>
-        </div>
-      </div>
-      <UCard>
-        <slot />
-      </UCard>
-    </div>
-  </div>
+	<NuxtLoadingIndicator color="var(--ui-primary)" position="top" />
+
+	<div class="main-bg-color flex min-h-screen flex-col text-slate-100">
+		<LayoutHeader />
+
+		<UMain class="relative flex-1">
+			<div
+				class="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent via-primary/5 to-transparent"
+			></div>
+			<div class="flex min-h-[calc(100vh-80px)] items-center justify-center p-4">
+				<UPageCard class="w-full max-w-md border-slate-800">
+					<slot />
+				</UPageCard>
+			</div>
+		</UMain>
+
+		<LayoutFooter />
+	</div>
 </template>

@@ -1,7 +1,3 @@
-/**
- * AbstractStore — SSR-safe state over Nuxt `useState`.
- * Copied from Style-Guides shared/frontend/abstractStore.ts. See docs/07-state-and-data.md.
- */
 export abstract class BasicAbstractStore<T> {
 	protected readonly options: BasicAbstractStore.Options;
 
@@ -11,6 +7,7 @@ export abstract class BasicAbstractStore<T> {
 		protected readonly storeKey: string,
 		options?: BasicAbstractStore.InitOptions,
 	) {
+		// default options
 		this.options = {
 			enableAutoFetchIfEmpty: false,
 			...options,
@@ -64,10 +61,7 @@ export abstract class BasicAbstractStoreWithMetadata<T, MetaT> extends BasicAbst
 	) {
 		super(storeKey, options);
 
-		this.metadataState = useState<MetaT>(
-			`${this.storeKey}_metadata`,
-			() => options.defaultMetadata,
-		);
+		this.metadataState = useState<MetaT>(`${this.storeKey}_metadata`, () => options.defaultMetadata);
 	}
 
 	protected useMetadataRaw(): Ref<MetaT> {

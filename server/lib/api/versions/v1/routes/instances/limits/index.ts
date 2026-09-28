@@ -12,16 +12,17 @@ import { DOCS_TAGS } from "../../../docs";
 import { handleZitadelError } from "../errors";
 import { InstanceLimitsModel } from "./model";
 
-const app = new Hono();
+export const router = new Hono().basePath("/limits");
 
-app.put(
+router.put(
 	"/",
-	zValidator("json", InstanceLimitsModel.Set.Body),
+
 	APIRouteSpec.authenticated({
 		summary: "Set instance limits",
 		description:
 			"Set the audit-log retention and/or the block flag for an instance. `block: true` blocks the instance.",
 		tags: [DOCS_TAGS.LIMITS],
+
 		responses: APIResponseSpec.describeWithWrongInputs(
 			APIResponseSpec.successNoData("Limits updated"),
 			APIResponseSpec.notFound("Instance not found"),
@@ -29,6 +30,9 @@ app.put(
 			APIResponseSpec.forbidden(),
 		),
 	}),
+
+	zValidator("json", InstanceLimitsModel.Set.Body),
+
 	async (c) => {
 		const instanceId = c.req.param("instanceId") ?? "";
 		const body = c.req.valid("json");
@@ -41,11 +45,13 @@ app.put(
 	},
 );
 
-app.delete(
+router.delete(
 	"/",
+
 	APIRouteSpec.authenticated({
 		summary: "Reset instance limits",
 		tags: [DOCS_TAGS.LIMITS],
+
 		responses: APIResponseSpec.describeBasic(
 			APIResponseSpec.successNoData("Limits reset"),
 			APIResponseSpec.unauthorized(),
@@ -53,6 +59,7 @@ app.delete(
 			APIResponseSpec.notFound("Instance not found"),
 		),
 	}),
+
 	async (c) => {
 		const instanceId = c.req.param("instanceId") ?? "";
 		try {
@@ -63,5 +70,3 @@ app.delete(
 		}
 	},
 );
-
-export const instanceLimitsRouter = app;

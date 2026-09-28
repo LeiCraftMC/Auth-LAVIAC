@@ -40,7 +40,7 @@ type Method = "GET" | "POST" | "PUT" | "DELETE";
 
 export class ZitadelClient {
 	private static baseUrl(): string {
-		return (ConfigHandler.getConfig().LAVIAC_ZITADEL_URL ?? "").replace(/\/$/, "");
+		return (ConfigHandler.getConfig()?.ZITADEL_URL ?? "").replace(/\/$/, "");
 	}
 
 	private static async request<T>(method: Method, path: string, body?: unknown): Promise<T> {

@@ -39,8 +39,8 @@ export class ZitadelSystemJwt {
 		}
 
 		const config = ConfigHandler.getConfig();
-		const userId = config.LAVIAC_ZITADEL_SYSTEM_USER_ID;
-		const audience = (config.LAVIAC_ZITADEL_URL ?? "").replace(/\/$/, "");
+		const userId = config?.ZITADEL_SYSTEM_USER_ID;
+		const audience = (config?.ZITADEL_URL ?? "").replace(/\/$/, "");
 		if (!userId || !audience) {
 			throw new Error("LAVIAC_ZITADEL_SYSTEM_USER_ID and LAVIAC_ZITADEL_URL must be set.");
 		}

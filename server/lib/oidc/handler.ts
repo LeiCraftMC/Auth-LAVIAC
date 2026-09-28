@@ -20,9 +20,9 @@ export class OIDCHandler {
 	static async ensureConfig(): Promise<oidc.Configuration> {
 		if (OIDCHandler.config) return OIDCHandler.config;
 		const c = ConfigHandler.getConfig();
-		const issuer = (c.LAVIAC_ZITADEL_URL ?? "").replace(/\/$/, "");
-		const clientId = c.LAVIAC_OIDC_CLIENT_ID;
-		const clientSecret = c.LAVIAC_OIDC_CLIENT_SECRET;
+		const issuer = (c?.ZITADEL_URL ?? "").replace(/\/$/, "");
+		const clientId = c?.OIDC_CLIENT_ID;
+		const clientSecret = c?.OIDC_CLIENT_SECRET;
 		if (!clientId || !issuer) {
 			throw new Error("LAVIAC_OIDC_CLIENT_ID and LAVIAC_ZITADEL_URL must be set for OIDC.");
 		}
@@ -70,11 +70,10 @@ export class OIDCHandler {
 		// fetchUserInfo throws if the issuer doesn't expose one; fall back to claims.
 		let userinfo: Record<string, unknown> = {};
 		try {
-			userinfo = (await oidc.fetchUserInfo(
-				cfg,
-				accessToken,
-				sub || oidc.skipSubjectCheck,
-			)) as Record<string, unknown>;
+			userinfo = (await oidc.fetchUserInfo(cfg, accessToken, sub || oidc.skipSubjectCheck)) as Record<
+				string,
+				unknown
+			>;
 		} catch (err) {
 			Logger.warn("fetchUserInfo failed; falling back to ID token claims.", err);
 			userinfo = claims;

@@ -9,10 +9,9 @@
  *   GET  /auth/me        → current admin user
  *
  * State / nonce / PKCE verifier are round-tripped in short-lived HttpOnly cookies.
- * The static login is hardened per docs/10-auth.md: timing-safe dummy-hash verify and an
- * in-memory rate limiter (per-IP-per-username + globally per username).
  */
-import { randomBytes } from "node:crypto";
+
+import type { Context } from "hono";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { validator as zValidator } from "hono-openapi";
@@ -22,12 +21,85 @@ import { ConfigHandler } from "../../../../../utils/config";
 import { Logger } from "../../../../../utils/logger";
 import { APIResponse } from "../../../../utils/api-res";
 import { AuthHandler, SESSION_COOKIE, SessionHandler } from "../../../../utils/authHandler";
-import { AttemptRateLimiter } from "../../../../utils/rateLimiter";
 import { APIResponseSpec, APIRouteSpec } from "../../../../utils/specHelpers";
 import { DOCS_TAGS } from "../../docs";
 import { AuthModel } from "./model";
 
-const app = new Hono();
+// Dummy Bun.password hash for timing-normalized login failures — prevents username enumeration
+// Generated once at module load so it's a valid, cost-equivalent hash
+const DUMMY_PASSWORD_HASH = await Bun.password.hash("dummy-timing-constant");
+
+// Simple in-memory rate limiter for login to reduce brute-force risk
+const LOGIN_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_MAX_GLOBAL_ATTEMPTS = 15; // Per-username limit across all IPs
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const globalLoginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+// Periodic cleanup to prevent unbounded memory growth — runs every 5 minutes
+const LOGIN_CLEANUP_INTERVAL = setInterval(() => {
+	const now = Date.now();
+	for (const [key, entry] of loginAttempts) {
+		if (entry.resetAt <= now) loginAttempts.delete(key);
+	}
+	for (const [key, entry] of globalLoginAttempts) {
+		if (entry.resetAt <= now) globalLoginAttempts.delete(key);
+	}
+}, LOGIN_WINDOW_MS);
+// Allow the process to exit without waiting for this interval
+LOGIN_CLEANUP_INTERVAL.unref();
+
+function getClientId(c: Context) {
+	// bun/hono provides a native request with connection info
+	const remote = (c.req.raw as any)?.remoteAddr?.hostname;
+	return remote || "unknown";
+}
+
+function getLoginAttemptKey(clientId: string, username: string) {
+	return `${clientId}:${username.toLowerCase()}`;
+}
+
+function getGlobalLoginAttemptKey(username: string) {
+	return username.toLowerCase();
+}
+
+/**
+ * Register a failed attempt, incrementing the counter atomically.
+ * Returns the new count after increment — no await between read and write.
+ */
+function registerFailedLoginAttempt(
+	loginAttemptKey: string,
+	globalKey: string,
+): { perIpCount: number; globalCount: number } {
+	const now = Date.now();
+
+	// Per-client-per-username counter
+	let entry = loginAttempts.get(loginAttemptKey);
+	if (!entry || entry.resetAt <= now) {
+		entry = { count: 1, resetAt: now + LOGIN_WINDOW_MS };
+		loginAttempts.set(loginAttemptKey, entry);
+	} else {
+		entry.count += 1;
+	}
+
+	// Global per-username counter
+	let globalEntry = globalLoginAttempts.get(globalKey);
+	if (!globalEntry || globalEntry.resetAt <= now) {
+		globalEntry = { count: 1, resetAt: now + LOGIN_WINDOW_MS };
+		globalLoginAttempts.set(globalKey, globalEntry);
+	} else {
+		globalEntry.count += 1;
+	}
+
+	return { perIpCount: entry.count, globalCount: globalEntry.count };
+}
+
+function clearFailedLoginAttempts(loginAttemptKey: string, globalKey: string) {
+	loginAttempts.delete(loginAttemptKey);
+	globalLoginAttempts.delete(globalKey);
+}
+
+export const router = new Hono().basePath("/auth");
 
 const OAUTH_STATE_COOKIE = "laviac_oidc_state";
 const OAUTH_NONCE_COOKIE = "laviac_oidc_nonce";
@@ -35,19 +107,8 @@ const OAUTH_VERIFIER_COOKIE = "laviac_oidc_verifier";
 const OAUTH_REDIRECT_COOKIE = "laviac_oidc_redirect";
 const TEN_MINUTES = 60 * 10;
 
-/** Static fallback login hardening (docs/10-auth.md). */
-const LOGIN_MAX_ATTEMPTS = 10;
-const LOGIN_WINDOW_MS = 10 * 60 * 1000;
-const loginRateLimiter = new AttemptRateLimiter(LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW_MS, 60 * 1000);
-
-/**
- * Precomputed hash for timing-safe verification when the username does not match, so a
- * missing user takes the same time as a wrong password (prevents username enumeration).
- */
-const DUMMY_PASSWORD_HASH = await Bun.password.hash(randomBytes(32).toString("hex"));
-
 function isSecure(): boolean {
-	const appUrl = ConfigHandler.getConfig().LAVIAC_APP_URL ?? "";
+	const appUrl = ConfigHandler.getConfig()?.APP_URL ?? "";
 	return appUrl.startsWith("https://");
 }
 
@@ -65,7 +126,7 @@ function httpCookieOptions(maxAge: number) {
 /**
  * Session-token cookie. docs/10-auth.md: `httpOnly: false` — the client must read the
  * token to attach it as `Authorization: Bearer` via `updateAPIClient`. No `maxAge`
- * unless the browser should remember the session (docs/10-auth.md).
+ * unless the browser should remember the session.
  */
 function sessionCookieOptions(maxAge?: number) {
 	return {
@@ -78,18 +139,25 @@ function sessionCookieOptions(maxAge?: number) {
 }
 
 function redirectUri(): string {
-	const appUrl = (ConfigHandler.getConfig().LAVIAC_APP_URL ?? "").replace(/\/$/, "");
+	const appUrl = (ConfigHandler.getConfig()?.APP_URL ?? "").replace(/\/$/, "");
 	return `${appUrl}/api/v1/auth/callback`;
 }
 
-app.get(
-	"/auth/login",
+router.get(
+	"/login",
+
 	APIRouteSpec.unauthenticated({
 		summary: "Begin OIDC login",
 		description: "Redirects to the Zitadel authorization endpoint (Authorization Code + PKCE).",
 		tags: [DOCS_TAGS.AUTH],
-		responses: { 302: { description: "Redirect to the Zitadel authorization endpoint." } },
+
+		responses: {
+			302: {
+				description: "Redirect to the Zitadel authorization endpoint.",
+			},
+		},
 	}),
+
 	async (c) => {
 		const state = oidc.randomState();
 		const nonce = oidc.randomNonce();
@@ -112,15 +180,22 @@ app.get(
 	},
 );
 
-app.get(
-	"/auth/callback",
+router.get(
+	"/callback",
+
 	APIRouteSpec.unauthenticated({
 		summary: "OIDC callback",
 		description:
 			"Exchanges the authorization code for tokens, checks the admin project role, creates a session, and redirects to the app.",
 		tags: [DOCS_TAGS.AUTH],
-		responses: { 302: { description: "Redirect to the app; session cookie set on success." } },
+
+		responses: {
+			302: {
+				description: "Redirect to the app; session cookie set on success.",
+			},
+		},
 	}),
+
 	async (c) => {
 		const state = getCookie(c, OAUTH_STATE_COOKIE) ?? "";
 		const nonce = getCookie(c, OAUTH_NONCE_COOKIE) ?? "";
@@ -136,7 +211,7 @@ app.get(
 				pkceCodeVerifier: verifier,
 			});
 
-			const adminRole = ConfigHandler.getConfig().LAVIAC_OIDC_ADMIN_ROLE ?? "laviac_admin";
+			const adminRole = ConfigHandler.getConfig()?.OIDC_ADMIN_ROLE ?? "laviac_admin";
 			const isAdmin = OIDCHandler.isAdmin(info, adminRole);
 
 			if (!isAdmin) {
@@ -174,138 +249,164 @@ app.get(
 	},
 );
 
-app.post(
-	"/auth/login",
-	zValidator("json", AuthModel.Login.Body),
+router.post(
+	"/login",
+
 	APIRouteSpec.unauthenticated({
 		summary: "Static fallback login",
 		description:
 			"Authenticates the env-configured static admin account (LAVIAC_STATIC_AUTH_USERNAME / LAVIAC_STATIC_AUTH_PASSWORD_HASH). Only available when a password hash is configured; rate-limited.",
 		tags: [DOCS_TAGS.AUTH],
+
 		responses: APIResponseSpec.describeWithWrongInputs(
 			APIResponseSpec.success("Login successful", AuthModel.Login.Response),
-			APIResponseSpec.unauthorized("Invalid username or password"),
+			APIResponseSpec.unauthorized("Unauthorized: Invalid username or password"),
 			APIResponseSpec.tooManyRequests("Too many login attempts. Try again later."),
 		),
 	}),
+
+	zValidator("json", AuthModel.Login.Body),
+
 	async (c) => {
+		const authContext = AuthHandler.AuthContext.get(c) as AuthHandler.UnauthenticatedAuthContext;
+		if (authContext.type !== "unauthenticated") {
+			return APIResponse.forbidden(c, "You are already authenticated");
+		}
+
 		const { username, password } = c.req.valid("json");
-		const config = ConfigHandler.getConfig();
-		const hash = config.LAVIAC_STATIC_AUTH_PASSWORD_HASH;
-		const staticUsername = config.LAVIAC_STATIC_AUTH_USERNAME ?? "admin";
-		const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-		const ipKey = `ip:${ip}:${username}`;
-		const userKey = `user:${username}`;
-		const keys = [ipKey, userKey];
 
-		if (keys.some((key) => loginRateLimiter.isLimited(key))) {
-			c.header("Retry-After", String(loginRateLimiter.retryAfterSeconds(userKey)));
-			return APIResponse.tooManyRequests(c, "Too many login attempts. Try again later.");
-		}
-
-		// Uniform failure: always burn one argon2 verification (timing-safe dummy hash) and
-		// never reveal whether static login is configured or which part failed.
-		const fail = async () => {
-			await Bun.password.verify(password, DUMMY_PASSWORD_HASH);
-			return APIResponse.unauthorized(c, "Invalid username or password");
-		};
-
-		if (!hash || username !== staticUsername) {
-			for (const key of keys) loginRateLimiter.recordFailure(key);
-			return await fail();
-		}
-
-		let valid = false;
 		try {
-			valid = await Bun.password.verify(password, hash);
-		} catch (err) {
-			Logger.error("Static auth: LAVIAC_STATIC_AUTH_PASSWORD_HASH is not a valid hash:", err);
-			return APIResponse.serverError(c, "Static login is misconfigured. Check the server logs.");
-		}
-		if (!valid) {
-			for (const key of keys) loginRateLimiter.recordFailure(key);
-			return await fail();
-		}
+			const clientId = getClientId(c);
+			const loginAttemptKey = getLoginAttemptKey(clientId, username);
+			const globalKey = getGlobalLoginAttemptKey(username);
 
-		for (const key of keys) loginRateLimiter.clear(key);
-		const session = await SessionHandler.createSession({
-			sub: staticUsername,
-			email: null,
-			name: staticUsername,
-			role: "admin",
-			method: "static",
-		});
-		Logger.info(`Static login succeeded for "${staticUsername}" (ip: ${ip}).`);
-		return APIResponse.success(c, "Login successful", session);
+			// Increment counters FIRST, then check limits — eliminates TOCTOU race
+			const { perIpCount, globalCount } = registerFailedLoginAttempt(loginAttemptKey, globalKey);
+
+			if (perIpCount > LOGIN_MAX_ATTEMPTS || globalCount > LOGIN_MAX_GLOBAL_ATTEMPTS) {
+				const retrySeconds = Math.max(1, Math.ceil(LOGIN_WINDOW_MS / 1000));
+				c.header("Retry-After", retrySeconds.toString());
+				return APIResponse.tooManyRequests(c, `Too many login attempts. Try again in ${retrySeconds}s`);
+			}
+
+			const config = ConfigHandler.getConfig();
+			const hash = config?.STATIC_AUTH_PASSWORD_HASH;
+			const staticUsername = config?.STATIC_AUTH_USERNAME ?? "admin";
+
+			if (!hash || username !== staticUsername) {
+				// Timing-normalized: always run a Bun.password call to prevent username enumeration
+				await Bun.password.verify(password, DUMMY_PASSWORD_HASH);
+				return APIResponse.unauthorized(c, "Invalid username or password");
+			}
+
+			const passwordMatch = await Bun.password.verify(password, hash);
+			if (!passwordMatch) {
+				return APIResponse.unauthorized(c, "Invalid username or password");
+			}
+
+			// Successful login — clear all counters for this user
+			clearFailedLoginAttempts(loginAttemptKey, globalKey);
+
+			const session = await SessionHandler.createSession({
+				sub: staticUsername,
+				email: null,
+				name: staticUsername,
+				role: "admin",
+				method: "static",
+			});
+
+			Logger.info(`Static login succeeded for "${staticUsername}" (client: ${clientId}).`);
+
+			return APIResponse.success(c, "Login successful", session satisfies AuthModel.Login.Response);
+		} catch (error: any) {
+			Logger.error("Failed to create session", error.stack || error.message || error);
+			return APIResponse.serverError(c, "Failed to create session");
+		}
 	},
 );
 
-app.get(
-	"/auth/methods",
+router.get(
+	"/methods",
+
 	APIRouteSpec.unauthenticated({
 		summary: "Available authentication methods",
 		description:
 			"Reports which login methods are configured, so the login page can render the right forms.",
 		tags: [DOCS_TAGS.AUTH],
+
 		responses: APIResponseSpec.describeBasic(
 			APIResponseSpec.success("Authentication methods", AuthModel.Methods.Response),
 		),
 	}),
+
 	(c) => {
 		const config = ConfigHandler.getConfig();
 		return APIResponse.success(c, "Authentication methods", {
-			oidc: Boolean(
-				config.LAVIAC_ZITADEL_URL &&
-					config.LAVIAC_OIDC_CLIENT_ID &&
-					config.LAVIAC_OIDC_CLIENT_SECRET,
-			),
-			static: Boolean(config.LAVIAC_STATIC_AUTH_PASSWORD_HASH),
-		});
+			oidc: Boolean(config?.ZITADEL_URL && config?.OIDC_CLIENT_ID && config?.OIDC_CLIENT_SECRET),
+			static: Boolean(config?.STATIC_AUTH_PASSWORD_HASH),
+		} satisfies AuthModel.Methods.Response);
 	},
 );
 
-app.post(
-	"/auth/logout",
+router.post(
+	"/logout",
+
 	APIRouteSpec.authenticated({
 		summary: "Log out",
-		description: "Destroys the current session and clears the session cookie.",
+		description: "Invalidate the current session and clear the session cookie.",
 		tags: [DOCS_TAGS.AUTH],
-		responses: APIResponseSpec.describeBasic(APIResponseSpec.successNoData("Logout successful")),
+
+		responses: APIResponseSpec.describeBasic(
+			APIResponseSpec.successNoData("Logout successful"),
+			APIResponseSpec.unauthorized(
+				"Unauthorized: Invalid or missing session token / Your Auth Context is not a session",
+			),
+		),
 	}),
+
 	async (c) => {
-		const ctx = AuthHandler.getAuthContext(c);
-		if (ctx.type === "session") {
-			await SessionHandler.inValidateSession(ctx.id);
+		const authContext = AuthHandler.AuthContext.get(c);
+
+		if (authContext.type !== "session") {
+			return APIResponse.unauthorized(c, "Your Auth Context is not a session");
 		}
+
+		await SessionHandler.inValidateSession(authContext.id);
+
+		// LAVIAC: the OIDC callback sets this cookie server-side, so it is cleared here too.
 		deleteCookie(c, SESSION_COOKIE, { path: "/" });
+
 		return APIResponse.successNoData(c, "Logout successful");
 	},
 );
 
-app.get(
-	"/auth/me",
+router.get(
+	"/me",
+
 	APIRouteSpec.authenticated({
 		summary: "Current admin user",
 		description: "Returns the authenticated admin user, or an error if not signed in.",
 		tags: [DOCS_TAGS.AUTH],
+
 		responses: APIResponseSpec.describeBasic(
 			APIResponseSpec.success("Current user", AuthModel.Me.Response),
 			APIResponseSpec.unauthorized("Not authenticated"),
 		),
 	}),
+
 	(c) => {
-		const ctx = AuthHandler.getAuthContext(c);
-		if (ctx.type !== "session") {
+		const authContext = AuthHandler.AuthContext.getAsSession(c);
+
+		if (authContext.type !== "session") {
 			return APIResponse.unauthorized(c, "Not authenticated");
 		}
+
 		return APIResponse.success(c, "Current user", {
-			sub: ctx.user_sub,
-			email: ctx.user_email,
-			name: ctx.user_name,
-			role: ctx.user_role,
-			login_method: ctx.login_method,
-		});
+			sub: authContext.user_sub,
+			email: authContext.user_email,
+			name: authContext.user_name,
+			role: authContext.user_role,
+			login_method: authContext.login_method,
+		} satisfies AuthModel.Me.Response);
 	},
 );
-
-export const authRouter = app;

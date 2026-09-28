@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import type { CreateInstanceBody, CreateInstanceResult } from "~/utils/types";
 
-useSeoMeta({ title: "Create instance — LAVIAC" });
+definePageMeta({
+	layout: "dashboard",
+});
+
+useSeoMeta({
+	title: "Create instance | LAVIAC",
+	description: "Provision a new Zitadel instance with its first org and owner",
+});
 
 const toast = useToast();
 const router = useRouter();
@@ -69,64 +76,74 @@ async function submit() {
 </script>
 
 <template>
-  <div class="mx-auto max-w-2xl space-y-6">
-    <div>
-      <UButton icon="i-lucide-arrow-left" color="neutral" variant="ghost" to="/instances" class="mb-2">
-        Back
-      </UButton>
-      <h1 class="text-xl font-semibold text-white">Create virtual instance</h1>
-      <p class="text-sm text-slate-400">Provision a new Zitadel instance with its first org and owner.</p>
-    </div>
+	<UDashboardPanel>
+		<template #header>
+			<DashboardPageHeader title="Create virtual instance" icon="i-lucide-plus">
+				<template #trailing>
+					<span class="hidden text-slate-400 sm:inline">
+						Provision a new Zitadel instance with its first org and owner.
+					</span>
+				</template>
+			</DashboardPageHeader>
+		</template>
 
-    <UCard>
-      <template #header><span class="font-medium">Instance</span></template>
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <UFormField label="Instance name" required>
-          <UInput v-model="instanceName" placeholder="Acme Corp" icon="i-lucide-server" />
-        </UFormField>
-        <UFormField label="First org name">
-          <UInput v-model="firstOrgName" placeholder="Acme" />
-        </UFormField>
-        <UFormField label="Custom domain">
-          <UInput v-model="customDomain" placeholder="login.acme.com" icon="i-lucide-globe" />
-        </UFormField>
-        <UFormField label="Default language">
-          <UInput v-model="defaultLanguage" placeholder="en" />
-        </UFormField>
-      </div>
-    </UCard>
+		<template #body>
+			<DashboardPageBody>
+				<UCard>
+					<template #header><span class="font-medium">Instance</span></template>
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<UFormField label="Instance name" required>
+							<UInput v-model="instanceName" placeholder="Acme Corp" icon="i-lucide-server" />
+						</UFormField>
+						<UFormField label="First org name">
+							<UInput v-model="firstOrgName" placeholder="Acme" />
+						</UFormField>
+						<UFormField label="Custom domain">
+							<UInput v-model="customDomain" placeholder="login.acme.com" icon="i-lucide-globe" />
+						</UFormField>
+						<UFormField label="Default language">
+							<UInput v-model="defaultLanguage" placeholder="en" />
+						</UFormField>
+					</div>
+				</UCard>
 
-    <UCard>
-      <template #header><span class="font-medium">Owner</span></template>
-      <div class="mb-4 flex gap-2">
-        <UButton :variant="ownerType === 'human' ? 'solid' : 'ghost'" @click="ownerType = 'human'">
-          Human user
-        </UButton>
-        <UButton :variant="ownerType === 'machine' ? 'solid' : 'ghost'" @click="ownerType = 'machine'">
-          Machine user
-        </UButton>
-      </div>
+				<UCard>
+					<template #header><span class="font-medium">Owner</span></template>
+					<div class="mb-4 flex gap-2">
+						<UButton :variant="ownerType === 'human' ? 'solid' : 'ghost'" @click="ownerType = 'human'">
+							Human user
+						</UButton>
+						<UButton :variant="ownerType === 'machine' ? 'solid' : 'ghost'" @click="ownerType = 'machine'">
+							Machine user
+						</UButton>
+					</div>
 
-      <div v-if="ownerType === 'human'" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <UFormField label="Username" required><UInput v-model="humanUserName" /></UFormField>
-        <UFormField label="Email" required><UInput v-model="humanEmail" type="email" /></UFormField>
-        <UFormField label="First name" required><UInput v-model="humanFirstName" /></UFormField>
-        <UFormField label="Last name" required><UInput v-model="humanLastName" /></UFormField>
-        <UFormField label="Initial password" required><UInput v-model="humanPassword" type="password" /></UFormField>
-      </div>
+					<div v-if="ownerType === 'human'" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<UFormField label="Username" required><UInput v-model="humanUserName" /></UFormField>
+						<UFormField label="Email" required><UInput v-model="humanEmail" type="email" /></UFormField>
+						<UFormField label="First name" required><UInput v-model="humanFirstName" /></UFormField>
+						<UFormField label="Last name" required><UInput v-model="humanLastName" /></UFormField>
+						<UFormField label="Initial password" required>
+							<UInput v-model="humanPassword" type="password" />
+						</UFormField>
+					</div>
 
-      <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <UFormField label="Username" required><UInput v-model="machineUserName" /></UFormField>
-        <UFormField label="Name" required><UInput v-model="machineName" /></UFormField>
-        <p class="text-sm text-slate-500 sm:col-span-2">
-          A personal access token and JSON machine key will be generated automatically and returned once.
-        </p>
-      </div>
-    </UCard>
+					<div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<UFormField label="Username" required><UInput v-model="machineUserName" /></UFormField>
+						<UFormField label="Name" required><UInput v-model="machineName" /></UFormField>
+						<p class="text-sm text-slate-500 sm:col-span-2">
+							A personal access token and JSON machine key will be generated automatically and returned once.
+						</p>
+					</div>
+				</UCard>
 
-    <div class="flex justify-end gap-2">
-      <UButton color="neutral" variant="ghost" to="/instances">Cancel</UButton>
-      <UButton icon="i-lucide-plus" :loading="submitting" @click="submit">Create instance</UButton>
-    </div>
-  </div>
+				<div class="flex justify-end gap-2">
+					<UButton color="neutral" variant="ghost" to="/instances">Cancel</UButton>
+					<UButton icon="i-lucide-plus" :loading="submitting" @click="submit">
+						Create instance
+					</UButton>
+				</div>
+			</DashboardPageBody>
+		</template>
+	</UDashboardPanel>
 </template>

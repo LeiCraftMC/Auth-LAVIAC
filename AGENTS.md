@@ -36,8 +36,7 @@ a `server/plugins/startup.ts` Nitro plugin boots config → DB → API. See Styl
    Sessions otherwise follow docs/10 exactly: opaque `laviac_sess_<id>:<base>` tokens (id = row
    primary key, base stored only as a `Bun.password` hash, 7-day default TTL, purged on access),
    timing-safe dummy-hash verify + in-memory rate limiter on login (docs/10 hardening), and the
-   `laviac_session_token` cookie — except `secure` is derived from `LAVIAC_APP_URL` instead of
-   hardcoded `true`, so plain-http local development still works.
+   `laviac_session_token` cookie with the docs/10 defaults (`secure; sameSite=lax; httpOnly:false`).
 2. **Admin authorization = Zitadel project role.** The role claim
    `urn:zitadel:iam:org:project:roles` must contain the configured role
    (`LAVIAC_OIDC_ADMIN_ROLE`, default `laviac_admin`). The cached `user_role` column in
@@ -59,16 +58,14 @@ a `server/plugins/startup.ts` Nitro plugin boots config → DB → API. See Styl
 6. **v1 scope = cross-instance control**: instance CRUD, custom domains, limits/quota over the
    v1 System API. Per-instance Admin-API settings (login policy, branding, password complexity)
    are **Phase 2** (needs a second service account + instance-context routing).
-7. **SSR is globally disabled** (`routeRules: { "/**": { ssr: false } }`). docs/06 keeps SSR for
-   public pages; LAVIAC has none — every route sits behind the auth guard — so the whole app
-   renders client-side.
 
 ## Key locations
 
 - Backend: `server/lib/api/versions/v1/routes/{health,auth,instances,domains}/`.
 - Zitadel client: `server/lib/zitadel/{client.ts,jwt.ts,types.ts}`.
 - OIDC/session: `server/lib/oidc/handler.ts`, `server/lib/api/utils/authHandler.ts`
-  (`AuthUtils` / `SessionHandler` / `AuthHandler`), `server/lib/api/utils/rateLimiter.ts`.
+  (`AuthUtils` / `SessionHandler` / `AuthHandler`). Login rate limiting is inlined in
+  `server/lib/api/versions/v1/routes/auth/index.ts` (docs/10-auth.md).
 - DB/audit: `server/lib/db/{index.ts,schema.ts,utils.ts}`, `server/lib/utils/audit.ts`.
 - Frontend pages: `app/pages/{auth/login.vue, instances/}`. Components: `app/components/{layout,dashboard}/`.
 - Config: `server/lib/utils/config.ts` (all `LAVIAC_*` env vars; `example.env` documents them);

@@ -1,7 +1,3 @@
-/**
- * APIResponse — the universal `{ success, code, message, data }` envelope.
- * Copied from Style-Guides shared/backend/api-response.ts. See docs/05-api-contract.md.
- */
 import type { Context } from "hono";
 import { z } from "zod";
 
@@ -45,7 +41,6 @@ export class APIResponse {
 	static unauthorized(c: Context, message: string) {
 		return c.json({ success: false, code: 401, message }, 401);
 	}
-
 	static forbidden(c: Context, message: string) {
 		return c.json({ success: false, code: 403, message }, 403);
 	}
@@ -131,7 +126,7 @@ export namespace APIResponse.Schema {
 }
 
 export namespace APIResponse.Types {
-	// Can be a JSON object or array.
+	// Can be JSON object or Array
 	export type RequiredReturnData = { [key: string]: any } | Array<any>;
 
 	export type NonRequiredReturnData = null | RequiredReturnData;
@@ -147,4 +142,16 @@ export namespace APIResponse.Types {
 		| ReturnType<typeof APIResponse.notFound>
 		| ReturnType<typeof APIResponse.conflict>
 		| ReturnType<typeof APIResponse.tooManyRequests>;
+
+	export type BasicResponseSchema =
+		| z.infer<ReturnType<typeof APIResponse.Schema.success<any, z.ZodType<NonRequiredReturnData>>>>
+		| z.infer<ReturnType<typeof APIResponse.Schema.accepted<any, z.ZodType<RequiredReturnData>>>>
+		| z.infer<ReturnType<typeof APIResponse.Schema.created<any, z.ZodType<RequiredReturnData>>>>
+		| z.infer<ReturnType<typeof APIResponse.Schema.serverError<any>>>
+		| z.infer<ReturnType<typeof APIResponse.Schema.unauthorized<any>>>
+		| z.infer<ReturnType<typeof APIResponse.Schema.forbidden<any>>>
+		| z.infer<ReturnType<typeof APIResponse.Schema.badRequest<any>>>
+		| z.infer<ReturnType<typeof APIResponse.Schema.notFound<any>>>
+		| z.infer<ReturnType<typeof APIResponse.Schema.conflict<any>>>
+		| z.infer<ReturnType<typeof APIResponse.Schema.tooManyRequests<any>>>;
 }
