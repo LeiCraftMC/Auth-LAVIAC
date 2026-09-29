@@ -25,6 +25,6 @@ VOLUME /opt/leicraftmc/auth/laviac/data
 VOLUME /opt/leicraftmc/auth/laviac/config
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
-	CMD curl -f http://localhost:12191/health || exit 1
+	CMD curl -f http://localhost:12191/api/health || exit 1
 
 CMD [ "bun", "run", "/opt/leicraftmc/auth/laviac/app/.output/server/index.mjs" ]
