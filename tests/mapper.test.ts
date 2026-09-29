@@ -1,8 +1,9 @@
-import { describe, expect, it } from "bun:test";
+/// <reference types="bun-types" />
+import { describe, expect, test } from "bun:test";
 import { mapDomain, mapInstance } from "../server/lib/api/versions/v1/routes/instances/mapper";
 
 describe("instance mapper", () => {
-	it("maps a Zitadel instance to the LAVIAC shape", () => {
+	test("maps a Zitadel instance to the LAVIAC shape", () => {
 		const mapped = mapInstance({
 			id: "123",
 			state: "STATE_RUNNING",
@@ -29,7 +30,7 @@ describe("instance mapper", () => {
 		});
 	});
 
-	it("maps a domain", () => {
+	test("maps a domain", () => {
 		expect(mapDomain({ domain: "x.com", primary: false, generated: true })).toEqual({
 			domain: "x.com",
 			primary: false,

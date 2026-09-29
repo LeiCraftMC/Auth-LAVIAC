@@ -11,14 +11,6 @@ const mainItems: NavigationMenuItem[] = [
 		exact: true,
 	},
 ];
-
-const footerItems: NavigationMenuItem[] = [
-	{
-		label: "Back to Home",
-		icon: "i-lucide-house",
-		to: "/",
-	},
-];
 </script>
 
 <template>
@@ -39,7 +31,7 @@ const footerItems: NavigationMenuItem[] = [
 			:max-size="30"
 		>
 			<template #header="{ collapsed }">
-				<NuxtLink to="/dashboard" :class="`${!collapsed ? 'ms-2.5' : ''} flex items-center gap-1.5`">
+				<NuxtLink to="/instances" :class="`${!collapsed ? 'ms-2.5' : ''} flex items-center gap-1.5`">
 					<ImgAppLogo v-if="!collapsed" class="h-7" />
 					<ImgAppIcon v-else class="h-8 w-8" />
 				</NuxtLink>
@@ -47,13 +39,6 @@ const footerItems: NavigationMenuItem[] = [
 
 			<template #default="{ collapsed }">
 				<UNavigationMenu :collapsed="collapsed" :items="mainItems" orientation="vertical" />
-
-				<UNavigationMenu
-					:collapsed="collapsed"
-					:items="footerItems"
-					orientation="vertical"
-					class="mt-auto"
-				/>
 			</template>
 
 			<template #footer="{ collapsed }">

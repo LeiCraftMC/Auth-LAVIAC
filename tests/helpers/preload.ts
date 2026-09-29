@@ -14,11 +14,17 @@ const STATIC_AUTH_TEST_HASH = await Bun.password.hash(STATIC_AUTH_TEST_PASSWORD)
 function setTestEnv(rootDir: string) {
 	const envVars = {
 		LAVIAC_LOG_LEVEL: "debug",
-		LAVIAC_APP_URL: "http://localhost:12191",
+
 		LAVIAC_API_DISABLE_DOCS: true,
+
 		LAVIAC_DB_PATH: path.join(rootDir, "db.sqlite"),
 		LAVIAC_DB_AUTO_MIGRATE: true,
+		LAVIAC_DB_MIGRATION_DIR: "./drizzle/migrations",
+
 		LAVIAC_CONFIG_BASE_DIR: rootDir,
+
+		LAVIAC_APP_URL: "http://localhost:12191",
+		
 		LAVIAC_STATIC_AUTH_USERNAME: "admin",
 		LAVIAC_STATIC_AUTH_PASSWORD_HASH: STATIC_AUTH_TEST_HASH,
 	} as const satisfies Partial<ENVConfigLike>;
@@ -60,7 +66,7 @@ beforeAll(async () => {
 	TMP_ROOT = await createIsolatedDataDir();
 	setTestEnv(TMP_ROOT);
 	await ConfigHandler.loadConfig();
-	await DB.init(path.join(TMP_ROOT, "db.sqlite"), true, TMP_ROOT);
+	await DB.init(path.join(TMP_ROOT, "db.sqlite"), true, TMP_ROOT, "./drizzle/migrations");
 	await API.init([], true); // disable docs for the test harness
 });
 

@@ -8,12 +8,8 @@ defineProps<{
 
 <template>
 	<div class="main-bg-color flex min-h-screen flex-col text-slate-100">
-		<LayoutHeader />
-
-		<UMain class="flex-1">
+		<UMain class="flex flex-1 items-center justify-center">
 			<UError :error="error" />
 		</UMain>
-
-		<LayoutFooter />
 	</div>
 </template>
