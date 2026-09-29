@@ -24,7 +24,7 @@ function setTestEnv(rootDir: string) {
 		LAVIAC_CONFIG_BASE_DIR: rootDir,
 
 		LAVIAC_APP_URL: "http://localhost:12191",
-		
+
 		LAVIAC_STATIC_AUTH_USERNAME: "admin",
 		LAVIAC_STATIC_AUTH_PASSWORD_HASH: STATIC_AUTH_TEST_HASH,
 	} as const satisfies Partial<ENVConfigLike>;
