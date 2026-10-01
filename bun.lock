@@ -24,7 +24,7 @@
         "@hey-api/nuxt": "^0.2.1",
         "@hey-api/openapi-ts": "^0.99.0",
         "@iconify-json/lucide": "^1.2.117",
-        "bun-types": "^1.4.2",
+        "@types/bun": "^1.4.2", 
         "drizzle-kit": "^0.31.10",
         "typescript": "^6.0.3",
         "vue-tsc": "^3.3.6",
@@ -541,6 +541,8 @@
     "@tiptap/vue-3": ["@tiptap/vue-3@3.30.5", "", { "optionalDependencies": { "@tiptap/extension-bubble-menu": "^3.30.5", "@tiptap/extension-floating-menu": "^3.30.5" }, "peerDependencies": { "@floating-ui/dom": "^1.0.0", "@tiptap/core": "3.30.5", "@tiptap/pm": "3.30.5", "vue": "^3.0.0" } }, "sha512-YRHacQy09nFcokAScICxJ6pWr5daWbsLJuBiMo+DJQlr1XLi6o/zFhh3eR9+DKluL4OY3IZDYBYZfDs7YZtJNg=="],
 
     "@tiptap/y-tiptap": ["@tiptap/y-tiptap@3.0.9", "", { "dependencies": { "lib0": "^0.2.100" }, "peerDependencies": { "prosemirror-model": "^1.7.1", "prosemirror-state": "^1.2.3", "prosemirror-view": "^1.9.10", "y-protocols": "^1.0.1", "yjs": "^13.5.38" } }, "sha512-7/El8NQ8R5V5MkdrOUdfj9IgZacpt0H071xNimX7B0AnYiWiKefQnMKd41neQYzo2MOXbWdN3iZ+7Z7BruzOSA=="],
+
+    "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 
     "@types/estree": ["@types/estree@1.0.9", "", {}, "sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg=="],
 
