@@ -20,9 +20,8 @@ export default defineNuxtConfig({
 
 			output: {
 				banner: (function () {
-					
 					const mappings = {
-						LAVIAC_APP_URL: "APP_URL"
+						LAVIAC_APP_URL: "APP_URL",
 					};
 
 					const bannerCode = `
@@ -37,9 +36,9 @@ export default defineNuxtConfig({
 						})();
 					`;
 
-					return bannerCode.replace(/^\s+|\s+$/g, '').replace(/\n\s*/g, ' ');
-				})()
-			}
+					return bannerCode.replace(/^\s+|\s+$/g, "").replace(/\n\s*/g, " ");
+				})(),
+			},
 		},
 
 		// server/ runs on Bun (bun:sqlite, Bun.password, …).
