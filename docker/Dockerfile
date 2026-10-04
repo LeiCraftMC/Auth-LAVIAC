@@ -10,7 +10,7 @@ COPY drizzle/migrations ./app/drizzle/migrations
 
 EXPOSE 12191/tcp
 
-ENV NITRO_ENV=production
+ENV NODE_ENV=production
 ENV NITRO_HOST=::
 ENV NITRO_PORT=12191
 
