@@ -15,20 +15,9 @@ export default defineNuxtConfig({
 	css: ["~/assets/css/main.css"],
 
 	nitro: {
-		rollupConfig: { external: ["bun:sqlite"] },
-
-		// server/ runs on Bun (bun:sqlite, Bun.password, …).
-		typescript: {
-			tsConfig: { compilerOptions: { types: ["bun-types"] } },
-		},
-
-		esbuild: {
-			options: {
-				target: "esnext",
-			},
-		},
-
 		rollupConfig: {
+			external: ["bun:sqlite"],
+
 			output: {
 				banner: (function () {
 					
@@ -51,6 +40,17 @@ export default defineNuxtConfig({
 					return bannerCode.replace(/^\s+|\s+$/g, '').replace(/\n\s*/g, ' ');
 				})()
 			}
+		},
+
+		// server/ runs on Bun (bun:sqlite, Bun.password, …).
+		typescript: {
+			tsConfig: { compilerOptions: { types: ["bun-types"] } },
+		},
+
+		esbuild: {
+			options: {
+				target: "esnext",
+			},
 		},
 	},
 
