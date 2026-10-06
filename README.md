@@ -33,7 +33,7 @@ Hono backend mounted inside Nitro (`server/`).
 LAVIAC/
 ├── app/                              # Nuxt 4 dashboard (NuxtUI v4 + Tailwind v4, dark-only)
 │   ├── pages/dashboard/              # overview, instances/…, admin/…
-│   ├── components/{dashboard,chart,instance,layout,form,img}/
+│   ├── components/{dashboard,chart,instance,form,img}/
 │   ├── composables/                  # useAPI, stores, cookies, subrouter helpers
 │   └── api-client/                   # GENERATED — typed SDK from the backend OpenAPI spec
 ├── server/                           # Hono backend (mounted in Nitro at /api)

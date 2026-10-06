@@ -77,9 +77,10 @@ Style-Guides [docs/01](../../Style-Guides/docs/01-project-structure.md) and
    the apt update check. In Docker the host's `/` is mounted read-only (`/:/host:ro`) and
    `LAVIAC_HOST_ROOT=/host`; kernel values (CPU, load, memory, uptime) come from `/proc` and are
    the host's either way.
-7. **No public pages.** `/` redirects to `/dashboard`; `public/robots.txt` disallows everything
-   and there is no sitemap. The auth layout and `error.vue` still use the template's
-   `LayoutHeader` / `LayoutFooter`.
+7. **No public pages (internal-only console).** `/` redirects to `/dashboard`;
+   `public/robots.txt` disallows everything and there is no sitemap. The public-site chrome is
+   gone: no `layouts/default.vue`, `components/layout/Header.vue` or `Footer.vue`. The auth layout
+   and `error.vue` show only the centered `ImgAppLogo`, like the template's onboarding layout.
 
 ## Key locations
 

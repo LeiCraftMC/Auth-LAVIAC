@@ -30,6 +30,8 @@ backend route, regenerate the client with `bun run api-client:generate`. Never h
 
 - Route map and access rules: the constants of `app/middleware/auth.global.ts` (`/dashboard/**`
   needs a session, `/dashboard/admin/**` the admin role).
+- Internal-only app: there is no public header/footer. Don't re-add `LayoutHeader` /
+  `LayoutFooter`; the auth layout and `error.vue` show just the logo.
 - Reference components by their Nuxt auto-import names (`DashboardDataTable`,
   `DashboardSectionCard`, `ChartTimeSeries`, `InstanceStateBadge`, …). Don't add explicit imports
   that only the `<template>` uses.
