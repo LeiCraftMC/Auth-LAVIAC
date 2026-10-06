@@ -14,6 +14,10 @@ const CONCURRENCY = 4;
 
 export class ZitadelUsage {
 	protected static cache: { fetchedAt: number; items: ZitadelUsage.InstanceUsage[] } | null = null;
+	protected static running: Promise<{
+		fetchedAt: number;
+		items: ZitadelUsage.InstanceUsage[];
+	}> | null = null;
 
 	static async getAll(
 		refresh = false,
@@ -23,6 +27,16 @@ export class ZitadelUsage {
 			return { ...cache, cached: true };
 		}
 
+		// Concurrent callers share one recount instead of each hitting every instance.
+		if (!ZitadelUsage.running) {
+			ZitadelUsage.running = ZitadelUsage.countAll().finally(() => {
+				ZitadelUsage.running = null;
+			});
+		}
+		return { ...(await ZitadelUsage.running), cached: false };
+	}
+
+	protected static async countAll() {
 		const instances = await ZitadelClient.listInstances();
 		const items: ZitadelUsage.InstanceUsage[] = [];
 
@@ -32,14 +46,14 @@ export class ZitadelUsage {
 		}
 
 		ZitadelUsage.cache = { fetchedAt: Date.now(), items };
-		return { ...ZitadelUsage.cache, cached: false };
+		return ZitadelUsage.cache;
 	}
 
 	protected static async forInstance(
 		instance: ZitadelInstance,
 	): Promise<ZitadelUsage.InstanceUsage> {
 		const base = { instanceId: instance.id, name: instance.name, state: instance.state };
-		const host = instance.domains?.find((d) => d.primary)?.domain ?? instance.domains?.[0]?.domain;
+		const host = ZitadelClient.getInstanceHost(instance);
 		if (!host) {
 			return { ...base, orgs: null, users: null, error: "Instance has no domain" };
 		}

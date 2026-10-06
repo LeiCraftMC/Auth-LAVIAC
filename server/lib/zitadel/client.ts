@@ -67,6 +67,14 @@ export interface ZitadelHealth {
 }
 
 export class ZitadelClient {
+	/**
+	 * The host an instance is addressed with in the instance-scoped calls
+	 * (`x-zitadel-instance-host`): its primary domain, else its first one.
+	 */
+	static getInstanceHost(instance: { domains?: ZitadelDomain[] }) {
+		return instance.domains?.find((d) => d.primary)?.domain ?? instance.domains?.[0]?.domain ?? null;
+	}
+
 	private static baseUrl(): string {
 		return (ConfigHandler.getConfig()?.ZITADEL_SYSTEM_API_URL ?? "").replace(/\/$/, "");
 	}

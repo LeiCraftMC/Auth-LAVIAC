@@ -13,25 +13,6 @@ type AdditionalTaskMeta = {
 };
 type TaskData = TaskHandler.BaseTaskData<AdditionalTaskMeta>;
 
-function buildPendingTaskData(
-	fn: TaskData["fn"],
-	args: TaskData["args"],
-	additionalMeta: AdditionalTaskMeta,
-	execOpts?: TaskHandler.TaskExecOptions,
-): Omit<TaskData, "id"> {
-	return {
-		...additionalMeta,
-		fn,
-		args,
-		execOptions: execOpts ?? null,
-		status: "pending",
-		created_at: Date.now(),
-		finished_at: null,
-		result: null,
-		message: null,
-	};
-}
-
 export class TaskStorage extends TaskHandler.AbstractStorageDriver<TaskData, AdditionalTaskMeta> {
 	private transportToDBFormat(task: TaskData, withID?: true): DB.Models.ScheduledTask;
 	private transportToDBFormat(task: TaskData, withID: false): Omit<DB.Models.ScheduledTask, "id">;
@@ -280,6 +261,18 @@ class LAVIACTaskHandler extends TaskHandler<
 	AdditionalTaskMeta
 > {
 	protected override async runTask(task: TaskData): Promise<void> {
+		// TaskHandler only logs and skips an unknown function, leaving the row pending forever —
+		// fail it instead (e.g. a task stored by an older LAVIAC whose function was removed).
+		if (!(task.fn in this.tasks)) {
+			await this.storage.updateTask({
+				...task,
+				status: "failed",
+				finished_at: Date.now(),
+				message: `Task function "${task.fn}" is not registered`,
+			});
+			return;
+		}
+
 		// A paused task keeps its status: TaskHandler reads it to restore the paused state.
 		if (task.status !== "paused") {
 			await this.storage.updateTask({ ...task, status: "running" });
@@ -304,32 +297,3 @@ export const TaskScheduler = new LAVIACTaskHandler(
 	},
 	Registry,
 );
-
-export class TaskQueueUtils {
-	static async createPendingTaskRecord(
-		fn: TaskData["fn"],
-		args: TaskData["args"],
-		additionalMeta: AdditionalTaskMeta,
-		execOpts?: TaskHandler.TaskExecOptions,
-	) {
-		return await taskStorage.createTask(buildPendingTaskData(fn, args, additionalMeta, execOpts));
-	}
-
-	static async activatePendingTask(taskID: number) {
-		const task = await taskStorage.loadTask(taskID);
-
-		if (!task) {
-			throw new Error(`Task ${taskID} not found after creation.`);
-		}
-
-		// Access the pending-tasks queue via the public processQueue method.
-		// The internal pending queue is not part of the documented API, so we
-		// rely on the queue being populated by enqueueTask for the scheduler to pick up.
-		(TaskScheduler as any).pendingTasks.push(task);
-		void TaskScheduler.processQueue();
-	}
-
-	static async deleteTaskRecord(taskID: number) {
-		await taskStorage.deleteTask(taskID);
-	}
-}

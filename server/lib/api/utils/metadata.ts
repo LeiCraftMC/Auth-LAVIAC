@@ -40,10 +40,14 @@ export class RuntimeMetadata {
 			}
 
 			const defaultData = this.schemas[key].parse(undefined) as z.infer<(typeof this.schemas)[T]>;
-			await DB.instance().insert(DB.Tables.metadata).values({
-				key: key,
-				data: defaultData,
-			});
+			// A concurrent first caller may have inserted the row meanwhile — keep theirs.
+			await DB.instance()
+				.insert(DB.Tables.metadata)
+				.values({
+					key: key,
+					data: defaultData,
+				})
+				.onConflictDoNothing();
 			return defaultData;
 		}
 
@@ -54,12 +58,11 @@ export class RuntimeMetadata {
 		key: T,
 		data: z.infer<(typeof this.schemas)[T]>,
 	): Promise<void> {
+		// LAVIAC: an upsert, so a value can be written without reading (and creating) it first.
 		await DB.instance()
-			.update(DB.Tables.metadata)
-			.set({
-				data: data,
-			})
-			.where(eq(DB.Tables.metadata.key, key));
+			.insert(DB.Tables.metadata)
+			.values({ key: key, data: data })
+			.onConflictDoUpdate({ target: DB.Tables.metadata.key, set: { data: data } });
 	}
 
 	// --- Typed accessors -------------------------------------------------------
@@ -69,8 +72,6 @@ export class RuntimeMetadata {
 	}
 
 	static async setOSUpdates(data: HostData.OSUpdateStatus) {
-		// setMetadata only updates — make sure the row exists first.
-		await this.getMetadata("osUpdates", true);
 		await this.setMetadata("osUpdates", data);
 	}
 
@@ -79,7 +80,6 @@ export class RuntimeMetadata {
 	}
 
 	static async setZitadelRelease(data: HostData.ZitadelReleaseStatus) {
-		await this.getMetadata("zitadelRelease", true);
 		await this.setMetadata("zitadelRelease", data);
 	}
 }

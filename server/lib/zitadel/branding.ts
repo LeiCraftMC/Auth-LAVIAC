@@ -34,16 +34,23 @@ export class ZitadelBranding {
 	} as const;
 
 	protected static fontLoader: (() => Promise<Uint8Array<ArrayBuffer> | null>) | null = null;
+	protected static font: Uint8Array<ArrayBuffer> | null = null;
 
 	static setFontLoader(loader: () => Promise<Uint8Array<ArrayBuffer> | null>) {
 		ZitadelBranding.fontLoader = loader;
+		ZitadelBranding.font = null;
 	}
 
-	/** The default branding font, or `null` when no loader is registered or loading fails. */
+	/**
+	 * The default branding font (read once, then cached), or `null` when no loader is registered
+	 * or loading fails.
+	 */
 	static async loadFont(): Promise<Uint8Array<ArrayBuffer> | null> {
+		if (ZitadelBranding.font) return ZitadelBranding.font;
 		if (!ZitadelBranding.fontLoader) return null;
 		try {
-			return await ZitadelBranding.fontLoader();
+			ZitadelBranding.font = await ZitadelBranding.fontLoader();
+			return ZitadelBranding.font;
 		} catch (err) {
 			Logger.error("Failed to load the default branding font:", err);
 			return null;

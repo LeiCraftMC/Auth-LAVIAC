@@ -39,7 +39,7 @@ router.get(
 
 		let instanceHost: string | null;
 		try {
-			instanceHost = ZitadelAPIUtils.getInstanceHost(await ZitadelClient.getInstance(instanceId));
+			instanceHost = ZitadelClient.getInstanceHost(await ZitadelClient.getInstance(instanceId));
 		} catch (err) {
 			return ZitadelAPIUtils.handleError(c, err);
 		}

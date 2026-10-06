@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ZitadelAPIUtils } from "../server/lib/api/utils/zitadel";
 import { ZitadelBranding } from "../server/lib/zitadel/branding";
+import { ZitadelClient } from "../server/lib/zitadel/client";
 import { ZitadelReleases } from "../server/lib/zitadel/releases";
 
 describe("Zitadel → API mappers", () => {
@@ -42,7 +43,7 @@ describe("Zitadel → API mappers", () => {
 	test("addresses an instance by its primary domain, else its first one", () => {
 		const base = { id: "1", name: "A", state: "STATE_RUNNING" as const };
 		expect(
-			ZitadelAPIUtils.getInstanceHost({
+			ZitadelClient.getInstanceHost({
 				...base,
 				domains: [
 					{ domain: "gen.example.com", generated: true },
@@ -50,10 +51,10 @@ describe("Zitadel → API mappers", () => {
 				],
 			}),
 		).toBe("a.com");
-		expect(
-			ZitadelAPIUtils.getInstanceHost({ ...base, domains: [{ domain: "gen.example.com" }] }),
-		).toBe("gen.example.com");
-		expect(ZitadelAPIUtils.getInstanceHost({ ...base, domains: [] })).toBeNull();
+		expect(ZitadelClient.getInstanceHost({ ...base, domains: [{ domain: "gen.example.com" }] })).toBe(
+			"gen.example.com",
+		);
+		expect(ZitadelClient.getInstanceHost({ ...base, domains: [] })).toBeNull();
 	});
 });
 

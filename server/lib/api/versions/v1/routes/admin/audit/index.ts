@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, like, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, or, type SQL, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator as zValidator } from "hono-openapi";
 import { DB } from "../../../../../../db";
@@ -33,12 +33,12 @@ router.get(
 		if (filters.action) predicates.push(eq(table.action, filters.action));
 		if (filters.instanceId) predicates.push(eq(table.target_instance_id, filters.instanceId));
 		if (filters.searchString) {
-			const pattern = `%${filters.searchString}%`;
+			// Case-insensitive substring match; `instr` (unlike LIKE) treats `%` and `_` literally.
+			const needle = filters.searchString.toLowerCase();
 			const search = or(
-				like(table.actor_sub, pattern),
-				like(table.action, pattern),
-				like(table.target_instance_id, pattern),
-				like(table.detail, pattern),
+				...[table.actor_sub, table.action, table.target_instance_id, table.detail].map(
+					(column) => sql`instr(lower(${column}), ${needle}) > 0`,
+				),
 			);
 			if (search) predicates.push(search);
 		}

@@ -86,7 +86,7 @@ export const ApplyDefaultBrandingTask = new TaskHandler.StepBasedTaskFn(
 				throw new Error(`Instance is ${instance.state}, waiting for STATE_RUNNING`);
 			}
 
-			const domain = instance.domains?.find((d) => d.primary)?.domain ?? instance.domains?.[0]?.domain;
+			const domain = ZitadelClient.getInstanceHost(instance);
 			if (!domain) {
 				throw new Error("Instance has no domain yet");
 			}

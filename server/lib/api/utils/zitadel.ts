@@ -27,11 +27,6 @@ export class ZitadelAPIUtils {
 		};
 	}
 
-	/** The host the instance-scoped Zitadel APIs are addressed with (primary domain first). */
-	static getInstanceHost(i: ZitadelInstance | InstanceData.Instance): string | null {
-		return i.domains?.find((d) => d.primary)?.domain ?? i.domains?.[0]?.domain ?? null;
-	}
-
 	/** Map a Zitadel upstream error to the envelope. */
 	static handleError(c: Context, err: unknown): Response {
 		Logger.error("Zitadel API error:", err);
