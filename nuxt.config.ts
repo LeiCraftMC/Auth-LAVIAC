@@ -55,14 +55,16 @@ export default defineNuxtConfig({
 
 	runtimeConfig: {
 		public: {
+			//@ts-ignore
 			appUrl: process.env.LAVIAC_APP_URL || "http://localhost:12191",
 		},
 	},
 
-	// docs/06-frontend-nuxt.md: client-only for the guarded dashboard/auth pages,
-	// SSR for everything else. LAVIAC's only public page is the `/` redirect.
 	routeRules: {
-		"/instances/**": { ssr: false },
+		// Pre-/dashboard bookmarks.
+		"/instances": { redirect: "/dashboard/instances" },
+		"/instances/**": { redirect: "/dashboard/instances/**" },
+		"/dashboard/**": { ssr: false },
 		"/auth/**": { ssr: false },
 		"/**": { ssr: true },
 	},

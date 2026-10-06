@@ -1,47 +1,40 @@
+import { createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import { UserAccountSettings } from "../../../../utils/shared-models/accountData";
+import { DB } from "../../../../../db";
 
-export namespace AuthModel {
-	export namespace Me {
-		/** Current admin user, returned by GET /auth/me. */
-		export const Response = z.object({
-			sub: z.string(),
-			email: z.string().nullable(),
-			name: z.string().nullable(),
-			role: UserAccountSettings.Role,
-			login_method: UserAccountSettings.LoginMethod,
-		});
-		export type Response = z.infer<typeof Response>;
-	}
+export namespace AuthModel.Login {
+	export const Body = z.object({
+		username: z.string(),
+		password: z.string(),
+	});
+	export type Body = z.infer<typeof Body>;
 
-	/** POST /auth/login — static fallback login (env-configured admin account). */
-	export namespace Login {
-		export const Body = z.object({
-			username: z.string().min(1),
-			password: z.string().min(1),
-		});
-		export type Body = z.infer<typeof Body>;
-
-		/** The session row plus the full opaque token, returned exactly once. */
-		export const Response = z.object({
+	export const Response = createSelectSchema(DB.Tables.sessions)
+		.omit({
+			id: true,
+			hashed_token: true,
+		})
+		.extend({
 			token: z.string(),
-			user_sub: z.string(),
-			user_email: z.string().nullable(),
-			user_name: z.string().nullable(),
-			user_role: UserAccountSettings.Role,
-			login_method: UserAccountSettings.LoginMethod,
-			created_at: z.number(),
-			expires_at: z.number(),
 		});
-		export type Response = z.infer<typeof Response>;
-	}
+	export type Response = z.infer<typeof Response>;
+}
 
-	/** GET /auth/methods — which login methods are configured (login-page discovery). */
-	export namespace Methods {
-		export const Response = z.object({
-			oidc: z.boolean(),
-			static: z.boolean(),
-		});
-		export type Response = z.infer<typeof Response>;
-	}
+// LAVIAC has no users table — the admin's identity (Zitadel `sub`, name, email, role, login
+// method) is cached on the session row, so the session is also the "current user".
+export namespace AuthModel.Session {
+	export const Response = createSelectSchema(DB.Tables.sessions).omit({
+		id: true,
+		hashed_token: true,
+	});
+	export type Response = z.infer<typeof Response>;
+}
+
+/** GET /auth/methods — which login methods are configured (login-page discovery). */
+export namespace AuthModel.Methods {
+	export const Response = z.object({
+		oidc: z.boolean(),
+		static: z.boolean(),
+	});
+	export type Response = z.infer<typeof Response>;
 }

@@ -34,7 +34,8 @@ export class API {
 
 			this.app.get(
 				`/docs/v${versionRouter.version}`,
-				Scalar({ url: `/docs/v${versionRouter.version}/openapi` }),
+				// Relative, so the docs page also finds its spec when the API is mounted under a prefix.
+				Scalar({ url: `./v${versionRouter.version}/openapi` }),
 			);
 		}
 	}
@@ -42,8 +43,7 @@ export class API {
 	/**
 	 * Build the Hono app: prettyJSON, CORS (allow the frontend origins), error handler,
 	 * versioned routes, docs, /health, and a `/` redirect to the latest docs. Does NOT
-	 * call Bun.serve under Nitro — the catch-all route mounts `getApp()` at /api
-	 * (see docs/04-backend-hono.md, "Mounting Hono in Nitro").
+	 * call Bun.serve — call `start(port, hostname)` for that.
 	 */
 	static async init(frontendUrls: string[], disableDocs: boolean) {
 		this.app = new Hono();
@@ -91,7 +91,9 @@ export class API {
 
 		if (!disableDocs) {
 			this.app.get("/", (c) => {
-				return c.redirect(`/docs/v${this.latestVersion}`);
+				// Keep any mount prefix (e.g. `/api` in the full-stack template).
+				const base = c.req.path.endsWith("/") ? c.req.path.slice(0, -1) : c.req.path;
+				return c.redirect(`${base}/docs/v${this.latestVersion}`);
 			});
 		} else {
 			this.app.get("/", (c) => {
@@ -103,6 +105,22 @@ export class API {
 				});
 			});
 		}
+	}
+
+	static async start(port: number, hostname: string) {
+		if (!this.app) {
+			throw new Error(`${AppConstants.APP_NAME} API not initialized. Call API.init() first.`);
+		}
+
+		this.server = Bun.serve({ port, hostname, fetch: this.app.fetch });
+
+		const serverHostnameStr = this.server.hostname?.includes(":")
+			? `[${this.server.hostname}]`
+			: this.server.hostname;
+
+		Logger.log(
+			`${AppConstants.APP_NAME} API listening on ${this.server.protocol}://${serverHostnameStr}:${this.server.port}`,
+		);
 	}
 
 	static async stop() {

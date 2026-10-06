@@ -1,20 +1,9 @@
-/**
- * auth.global.ts — session-aware route guard.
- *
- * - `/auth/*` is for signed-out users; a valid session is sent on to `HOME_ROUTE`.
- * - `PROTECTED_PREFIXES` need a valid session, otherwise → `/auth/login?url=…`.
- * - `ADMIN_PREFIXES` additionally need `role === "admin"`, otherwise → `HOME_ROUTE`.
- * - `PUBLIC_ROUTES` are exceptions inside a protected prefix (`[param]` segments supported).
- * - Everything else (landing page, marketing pages) is public.
- *
- * LAVIAC is a login-only app without a public landing page: `PROTECTED_PREFIXES = ["/"]`,
- * `HOME_ROUTE = "/instances"` (see docs/10-auth.md).
- */
 import { useUserInfoStore } from "~/composables/stores/useUserStore";
 
-const HOME_ROUTE = "/instances";
-const PROTECTED_PREFIXES = ["/"];
-const ADMIN_PREFIXES: string[] = [];
+// LAVIAC: no public landing page (`/` redirects to the dashboard) and no onboarding.
+const HOME_ROUTE = "/dashboard";
+const PROTECTED_PREFIXES = ["/dashboard"];
+const ADMIN_PREFIXES = ["/dashboard/admin"];
 const PUBLIC_ROUTES: string[] = [];
 
 function hasPrefix(path: string, prefixes: string[]) {
@@ -49,7 +38,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 		return navigateTo(loginRoute);
 	}
 
-	if (hasPrefix(to.path, ADMIN_PREFIXES) && user.value.role !== "admin") {
+	if (hasPrefix(to.path, ADMIN_PREFIXES) && user.value.user_role !== "admin") {
 		return navigateTo(HOME_ROUTE);
 	}
 });

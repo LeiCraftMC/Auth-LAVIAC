@@ -1,9 +1,11 @@
 import { z } from "zod";
 
-/** Cross-instance domain models (mounted at /domains). */
-export namespace DomainsModel {
-	export namespace Exists {
-		export const Response = z.object({ exists: z.boolean() });
-		export type Response = z.infer<typeof Response>;
-	}
+export namespace DomainsModel.Exists {
+	export const Params = z.object({
+		domain: z.string().min(1).max(253),
+	});
+	export type Params = z.infer<typeof Params>;
+
+	export const Response = z.object({ exists: z.boolean() });
+	export type Response = z.infer<typeof Response>;
 }

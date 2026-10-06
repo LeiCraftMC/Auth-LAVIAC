@@ -1,55 +1,87 @@
-/**
- * makeAPIRequest — in-process Hono request helper for integration tests.
- * Copied from Style-Guides shared/backend/make-api-request.ts. See docs/12-testing.md.
- */
-import type { Hono } from "hono";
-import type { ZodType } from "zod";
+import { expect } from "bun:test";
+import { ZodType, z } from "zod";
+import { API } from "../../server/lib/api";
+import { Logger } from "../../server/lib/utils/logger";
 
-export interface MakeAPIRequestOptions {
-	method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
-	authToken?: string | null;
-	body?: unknown;
-	expectedBodySchema?: ZodType;
-}
+type HeadersInit = RequestInit["headers"];
 
-const OK_CODES = [200, 201, 202, 204] as const;
-
-export interface APIRequestResult<T = unknown> {
-	status: number;
-	body: { success: boolean; code: number; message: string; data: unknown };
-	data: T;
-}
-
-export async function makeAPIRequest<T = unknown>(
-	app: Hono,
+export async function makeAPIRequest<ReturnBody = any>(
 	path: string,
-	options: MakeAPIRequestOptions = {},
+	opts: {
+		method?: "GET" | "POST" | "PUT" | "DELETE";
+		authToken?: string;
+		body?: Record<string, any>;
+		expectedBodySchema?: ZodType<ReturnBody>;
+		additionalOptions?: RequestInit;
+	} = {},
 	expectedCode?: number,
-): Promise<APIRequestResult<T>> {
-	const headers: Record<string, string> = { "Content-Type": "application/json" };
-	if (options.authToken) headers.Authorization = `Bearer ${options.authToken}`;
+) {
+	const baseHeaders: HeadersInit = {
+		...(opts.body ? { "Content-Type": "application/json" } : {}),
+		...(opts.authToken ? { Authorization: `Bearer ${opts.authToken}` } : {}),
+	};
 
-	const res = await app.request(path, {
-		method: options.method ?? "GET",
-		headers,
-		body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-	});
-
-	const expected = expectedCode !== undefined ? [expectedCode] : [...OK_CODES];
-	if (!expected.includes(res.status)) {
-		throw new Error(
-			`Expected status ${expected.join("|")} but got ${res.status} for ${options.method ?? "GET"} ${path}`,
-		);
-	}
-
-	const body = (await res.json()) as APIRequestResult["body"];
-
-	if (options.expectedBodySchema) {
-		const parsed = options.expectedBodySchema.safeParse(body.data);
-		if (!parsed.success) {
-			throw new Error(`Response body did not match schema: ${parsed.error.message}`);
+	if (opts.additionalOptions?.headers) {
+		const extraHeaders = opts.additionalOptions.headers as HeadersInit;
+		if (extraHeaders instanceof Headers) {
+			extraHeaders.forEach((value, key) => {
+				(baseHeaders as Record<string, string>)[key] = value;
+			});
+		} else {
+			Object.assign(baseHeaders as Record<string, string>, extraHeaders as Record<string, string>);
 		}
-		return { status: res.status, body, data: parsed.data as T };
 	}
-	return { status: res.status, body, data: body.data as T };
+
+	const resolvedBody =
+		opts.additionalOptions?.body ?? (opts.body ? JSON.stringify(opts.body) : undefined);
+
+	const options: RequestInit = {
+		method: opts.method ?? opts.additionalOptions?.method ?? "GET",
+		...opts.additionalOptions,
+		headers: baseHeaders,
+		body: resolvedBody,
+	};
+
+	const res = await API.getApp().request(path, options);
+
+	if (!expectedCode) {
+		const successStatusCodes = [200, 201, 202, 204];
+
+		if (!successStatusCodes.includes(res.status)) {
+			const errorText = await res.text();
+			Logger.error(`Expected status 2xx but got ${res.status}. Response body: ${errorText}`);
+		}
+
+		expect(res.status).toBeOneOf(successStatusCodes);
+	} else {
+		if (res.status !== expectedCode) {
+			const errorText = await res.text();
+			Logger.error(
+				`Expected status ${expectedCode} but got ${res.status}. Response body: ${errorText}`,
+			);
+		}
+
+		expect(res.status).toBe(expectedCode);
+	}
+
+	const contentType = res.headers.get("content-type") || "";
+	const resBody = contentType.includes("application/json") ? ((await res.json()) as any) : null;
+
+	if (opts.expectedBodySchema && resBody) {
+		const parseResult = opts.expectedBodySchema.safeParse(resBody.data || {});
+		if (parseResult.success) {
+			expect(parseResult.success).toBe(true);
+			return parseResult.data;
+		} else {
+			Logger.error("Response body did not match expected schema:", parseResult.error.message);
+			//@ts-ignore
+			expect(parseResult.success).toBe(true);
+		}
+	}
+
+	if (resBody && typeof resBody === "object" && "data" in resBody) {
+		return (resBody as any).data as ReturnBody;
+	}
+
+	return null as any as ReturnBody;
 }

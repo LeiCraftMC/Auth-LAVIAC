@@ -23,7 +23,9 @@ export class DB {
 			Logger.info("Running database migrations...");
 
 			if (Bun?.isStandaloneExecutable) {
-				migrationsFolder = path_join(import.meta.dir, migrationsFolder);
+				// `bun build --compile --asset ./drizzle/migrations` embeds the files as `migrations/...`
+				// next to the entry (`/$bunfs/root/migrations` on Linux) — without the `drizzle/` segment.
+				migrationsFolder = path_join(import.meta.dir, "migrations");
 			}
 
 			await migrate(this.db, { migrationsFolder });
@@ -63,11 +65,17 @@ export class DB {
 export namespace DB.Tables {
 	export const sessions = TableSchema.sessions;
 	export const auditLog = TableSchema.auditLog;
+	export const scheduled_tasks = TableSchema.scheduled_tasks;
+	export const scheduled_tasks_paused_state = TableSchema.scheduled_tasks_paused_state;
+	export const hostMetrics = TableSchema.hostMetrics;
 	export const metadata = TableSchema.metadata;
 }
 
 export namespace DB.Models {
 	export type Session = typeof DB.Tables.sessions.$inferSelect;
 	export type AuditLog = typeof DB.Tables.auditLog.$inferSelect;
+	export type ScheduledTask = typeof DB.Tables.scheduled_tasks.$inferSelect;
+	export type ScheduledTaskPausedState = typeof DB.Tables.scheduled_tasks_paused_state.$inferSelect;
+	export type HostMetric = typeof DB.Tables.hostMetrics.$inferSelect;
 	export type Metadata = typeof DB.Tables.metadata.$inferSelect;
 }

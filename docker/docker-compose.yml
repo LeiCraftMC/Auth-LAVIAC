@@ -1,31 +1,39 @@
-version: '3.8'
-
+# Runs the registry image — CI (.gitlab/ci/build.yml) builds and pushes $CI_REGISTRY_IMAGE:latest
+# from the default branch. Ports and DB paths are baked into the image (docker/Dockerfile ENV) —
+# set only what differs for this deployment. The system-user key is read from
+# config/system-user.pem (LAVIAC_CONFIG_BASE_DIR) unless LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY is set.
 services:
+
   laviac:
     image: gcr.leicraftmc.de/leicraftmc/laviac:latest
     container_name: laviac
+    restart: unless-stopped
     ports:
       - "12191:12191"
     environment:
-      - LAVIAC_LOG_LEVEL=info
-      - LAVIAC_APP_URL=https://laviac.leicraftmc.de
-      - LAVIAC_ZITADEL_AUTH_URL=https://auth.leicraftmc.de
-      - LAVIAC_ZITADEL_SYSTEM_API_URL=https://auth.leicraftmc.de
-      - LAVIAC_ZITADEL_SYSTEM_USER_ID=laviac-system-user
-      - LAVIAC_ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH=/opt/laviac/config/system-user.pem
-      - LAVIAC_OIDC_CLIENT_ID=laviac
-      - LAVIAC_OIDC_CLIENT_SECRET=
-      - LAVIAC_OIDC_ADMIN_ROLE=laviac_admin
-      - LAVIAC_STATIC_AUTH_USERNAME=admin
-      # Generate with: bun run hash-password <password>
-      - LAVIAC_STATIC_AUTH_PASSWORD_HASH=
+      LAVIAC_LOG_LEVEL: info
+
+      LAVIAC_API_DISABLE_DOCS: false
+
+      LAVIAC_APP_URL: https://laviac.leicraftmc.de
+
+      LAVIAC_ZITADEL_AUTH_URL: https://auth.leicraftmc.de
+      LAVIAC_ZITADEL_SYSTEM_API_URL: https://auth.leicraftmc.de
+      LAVIAC_ZITADEL_SYSTEM_USER_ID: laviac-system-user
+      LAVIAC_ZITADEL_APPLY_DEFAULT_BRANDING: true
+
+      LAVIAC_OIDC_CLIENT_ID: laviac
+      LAVIAC_OIDC_CLIENT_SECRET: ""
+      LAVIAC_OIDC_ADMIN_ROLE: laviac_admin
+
+      LAVIAC_STATIC_AUTH_USERNAME: admin
+      # Generate with: bun run hash-password <password> (escape every `$` as `$$` here)
+      LAVIAC_STATIC_AUTH_PASSWORD_HASH: ""
+
+      # The host VM's filesystem, mounted read-only below — host stats and OS update checks.
+      LAVIAC_HOST_ROOT: /host
+
     volumes:
-      - /opt/laviac/config:/opt/laviac/config
-      - /opt/laviac/data:/opt/laviac/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:12191/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
+      - ./data:/opt/leicraftmc/auth/laviac/data
+      - ./config:/opt/leicraftmc/auth/laviac/config
+      - /:/host:ro

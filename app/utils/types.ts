@@ -1,29 +1,48 @@
-/** LAVIAC frontend types — mirror the backend v1 route models (envelope `data`). */
-
 import type {
-	GetInstancesByIdResponses,
+	GetAdminAuditResponses,
+	GetAdminHostMetricsResponses,
+	GetAdminHostResponses,
+	GetAdminSessionsResponses,
+	GetAdminStatisticsResponses,
+	GetAdminStatisticsUsageResponses,
+	GetAdminTasksByTaskIdResponses,
+	GetAdminTasksResponses,
+	GetAdminUpdatesResponses,
+	GetAuthSessionResponses,
+	GetInstancesByInstanceIdBrandingResponses,
 	GetInstancesByInstanceIdDomainsResponses,
+	GetInstancesByInstanceIdResponses,
 	PostInstancesData,
 	PostInstancesResponses,
 } from "~/api-client";
 
-/** The signed-in admin, returned by GET /auth/me. */
-export type UserInfo = {
-	sub: string;
-	email: string | null;
-	name: string | null;
-	role: "admin" | "member";
-	login_method: "oidc" | "static";
-};
-
-export type InstanceDomain = GetInstancesByInstanceIdDomainsResponses[200]["data"];
-
-export type Instance = GetInstancesByIdResponses[200]["data"];
-
-export type CreateInstanceBody = PostInstancesData["body"];
-
-export type CreateInstanceResult = PostInstancesResponses[201]["data"];
-
-export function primaryDomain(instance: Instance): string | undefined {
-	return instance.domains?.find((d) => d.primary)?.domain ?? instance.domains?.[0]?.domain;
+export namespace UtilityTypes {
+	export type SomePartial<T, K extends keyof T> = Partial<Pick<T, K>> & Omit<T, K>;
 }
+
+/** The signed-in admin — the current session (`GET /auth/session`); LAVIAC has no users table. */
+export type UserInfo = GetAuthSessionResponses["200"]["data"];
+
+export type Instance = GetInstancesByInstanceIdResponses["200"]["data"];
+export type InstanceDomain = GetInstancesByInstanceIdDomainsResponses["200"]["data"][number];
+export type NewInstance = NonNullable<PostInstancesData["body"]>;
+export type CreatedInstance = PostInstancesResponses["201"]["data"];
+export type InstanceBranding = GetInstancesByInstanceIdBrandingResponses["200"]["data"];
+export type LabelPolicy = InstanceBranding["defaults"];
+
+export type Statistics = GetAdminStatisticsResponses["200"]["data"];
+export type InstanceUsage = GetAdminStatisticsUsageResponses["200"]["data"];
+
+export type HostStatus = GetAdminHostResponses["200"]["data"];
+export type HostMetrics = GetAdminHostMetricsResponses["200"]["data"];
+export type HostMetricsRange = HostMetrics["range"];
+
+export type UpdateStatus = GetAdminUpdatesResponses["200"]["data"];
+export type OSUpdatePackage = UpdateStatus["os"]["packages"][number];
+
+export type AuditEntry = GetAdminAuditResponses["200"]["data"]["items"][number];
+
+export type Task = GetAdminTasksResponses["200"]["data"][number];
+export type TaskDetail = GetAdminTasksByTaskIdResponses["200"]["data"];
+
+export type AdminSession = GetAdminSessionsResponses["200"]["data"][number];

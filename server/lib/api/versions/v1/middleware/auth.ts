@@ -2,6 +2,18 @@ import { createMiddleware } from "hono/factory";
 import { APIResponse } from "../../../utils/api-res";
 import { AuthHandler } from "../../../utils/authHandler";
 
+// Endpoints that stay reachable with a malformed, invalid or expired token (the OIDC redirect,
+// the static fallback login, the OIDC callback and the login-methods discovery), so a stale
+// session cookie can never lock a user out of signing in again.
+const PUBLIC_AUTH_PATHS = ["/v1/auth/login", "/v1/auth/callback", "/v1/auth/methods"];
+
+// `c.req.path` is the full request path. Compare from `/v1/` on, so this also works when the
+// API is mounted under a prefix (the full-stack template serves it at `/api/v1/...`).
+function isPublicAuthPath(fullPath: string) {
+	const path = fullPath.slice(Math.max(fullPath.indexOf("/v1/"), 0));
+	return PUBLIC_AUTH_PATHS.some((publicPath) => path.startsWith(publicPath));
+}
+
 export const authMiddlewareV1 = createMiddleware(async (c, next) => {
 	const authHeader = c.req.header("Authorization");
 
@@ -13,15 +25,8 @@ export const authMiddlewareV1 = createMiddleware(async (c, next) => {
 		return await next();
 	}
 
-	// The app is mounted at /api in Nitro but addressed directly in tests — normalize so
-	// the public-path checks below see the same paths in both modes.
-	const path = c.req.path.replace(/^\/api(?=\/)/, "");
-
 	if (!authHeader.startsWith("Bearer ")) {
-		// Allow unauthenticated access to the login routes (OIDC redirect + static fallback),
-		// the OIDC callback, and the login-methods discovery endpoint, which may be accessed
-		// with an invalid or missing token.
-		if (isPublicAuthPath(path)) {
+		if (isPublicAuthPath(c.req.path)) {
 			AuthHandler.AuthContext.set(c, {
 				type: "unauthenticated",
 			} satisfies AuthHandler.UnauthenticatedAuthContext);
@@ -37,7 +42,7 @@ export const authMiddlewareV1 = createMiddleware(async (c, next) => {
 	const authContext = await AuthHandler.getAuthContext(token);
 
 	if (!authContext || !(await AuthHandler.isValidAuthContext(authContext))) {
-		if (isPublicAuthPath(path)) {
+		if (isPublicAuthPath(c.req.path)) {
 			AuthHandler.AuthContext.set(c, {
 				type: "unauthenticated",
 			} satisfies AuthHandler.UnauthenticatedAuthContext);
@@ -51,27 +56,4 @@ export const authMiddlewareV1 = createMiddleware(async (c, next) => {
 	AuthHandler.AuthContext.set(c, authContext);
 
 	return await next();
-});
-
-/** Unauthenticated requests may only reach the auth endpoints (docs/10-auth.md). */
-function isPublicAuthPath(path: string) {
-	return (
-		path.startsWith("/v1/auth/login") ||
-		path.startsWith("/v1/auth/callback") ||
-		path.startsWith("/v1/auth/methods")
-	);
-}
-
-/** Per-route middleware: require an authenticated admin session (401 / 403). */
-export const requireAdmin = createMiddleware(async (c, next) => {
-	const authContext = AuthHandler.AuthContext.get(c);
-
-	if (authContext.type !== "session") {
-		return APIResponse.unauthorized(c, "Authentication required");
-	}
-	if (authContext.user_role !== "admin") {
-		return APIResponse.forbidden(c, "This endpoint is restricted to administrators");
-	}
-
-	await next();
 });

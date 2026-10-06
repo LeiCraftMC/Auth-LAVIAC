@@ -5,7 +5,8 @@ export default defineConfig({
 	schema: "./server/lib/db/schema.ts",
 	dialect: "sqlite",
 	dbCredentials: {
-		url: process.env.LAVIAC_DB_PATH ?? "./data/db.sqlite",
+		//@ts-ignore
+		url: process.env.LAVIAC_DB_PATH || "./data/db.sqlite",
 	},
 	verbose: true,
 	strict: true,

@@ -1,4 +1,6 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import type { TaskHandler } from "@cleverjs/utils";
+import { sql } from "drizzle-orm";
+import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { UserAccountSettings } from "../api/utils/shared-models/accountData";
 import { SQLUtils } from "./utils";
 
@@ -27,6 +29,55 @@ export const auditLog = sqliteTable("audit_log", {
 	action: text().notNull(),
 	target_instance_id: text(),
 	detail: text(),
+	created_at: SQLUtils.getCreatedAtColumn(),
+});
+
+/**
+ * @deprecated Use DB.Tables.scheduled_tasks to access this table.
+ */
+export const scheduled_tasks = sqliteTable("scheduled_tasks", {
+	id: integer().primaryKey({ autoIncrement: true }),
+	function: text().notNull(),
+	// LAVIAC has no local users table — the actor is the session's `user_sub`.
+	created_by_user_sub: text(),
+	args: text({ mode: "json" }).$type<Record<string, any>>().notNull(),
+	autoDelete: integer({ mode: "boolean" }).notNull().default(sql`0`),
+	storeLogs: integer({ mode: "boolean" }).notNull().default(sql`0`),
+	status: text({ enum: ["pending", "running", "paused", "failed", "completed"] })
+		.notNull()
+		.default("pending"),
+	created_at: integer().notNull(),
+	finished_at: integer(),
+	result: text({ mode: "json" }).$type<Record<string, any>>(),
+	message: text(),
+});
+
+/**
+ * @deprecated Use DB.Tables.scheduled_tasks_paused_state to access this table.
+ */
+export const scheduled_tasks_paused_state = sqliteTable("scheduled_tasks_paused_state", {
+	task_id: integer()
+		.primaryKey()
+		.references(() => scheduled_tasks.id, { onDelete: "cascade" }),
+	next_step_to_execute: integer().notNull(),
+	data: text({ mode: "json" }).$type<TaskHandler.TempPausedTaskState["data"]>().notNull(),
+});
+
+/**
+ * Host VM samples, written every minute by the cron job (server/lib/utils/cron.ts) and pruned
+ * after `HostMetrics.RETENTION_DAYS`. Byte counts are bytes; usage values are percentages.
+ * @deprecated Use DB.Tables.hostMetrics to access this table.
+ */
+export const hostMetrics = sqliteTable("host_metrics", {
+	id: SQLUtils.primaryKeyIntAutoIncrement("id"),
+	cpu_usage: real(),
+	load_1: real().notNull(),
+	mem_total: integer().notNull(),
+	mem_used: integer().notNull(),
+	swap_total: integer().notNull(),
+	swap_used: integer().notNull(),
+	disk_total: integer(),
+	disk_used: integer(),
 	created_at: SQLUtils.getCreatedAtColumn(),
 });
 

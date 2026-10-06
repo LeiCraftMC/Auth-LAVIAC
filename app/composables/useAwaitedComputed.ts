@@ -1,6 +1,9 @@
 /**
  * useAwaitedComputed — an async `computed()`.
- * Copied from Style-Guides shared/frontend/useAwaitedComputed.ts. See docs/07-state-and-data.md.
+ *
+ * Pass a getter that returns a `Promise<T>`; it returns a `ComputedRef<T>` that resolves to the
+ * latest value and updates whenever its reactive dependencies change. Awaits the first run before
+ * returning so the initial value is populated. See docs/07-state-and-data.md.
  */
 import type {
 	ComputedGetter,

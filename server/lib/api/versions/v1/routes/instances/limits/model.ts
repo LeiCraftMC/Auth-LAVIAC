@@ -1,15 +1,10 @@
 import { z } from "zod";
 
-/**
- * InstanceLimitsModel — schemas for the per-instance limits sub-router
- * (mounted at /instances/:instanceId/limits).
- */
-export namespace InstanceLimitsModel {
-	export namespace Set {
-		export const Body = z.object({
-			auditLogRetention: z.string().optional(),
-			block: z.boolean().nullable().optional(),
-		});
-		export type Body = z.infer<typeof Body>;
-	}
+export namespace InstanceLimitsModel.Set {
+	export const Body = z.object({
+		/** A protobuf duration, e.g. `720h`. */
+		auditLogRetention: z.string().optional(),
+		block: z.boolean().nullable().optional(),
+	});
+	export type Body = z.infer<typeof Body>;
 }

@@ -1,15 +1,13 @@
-/**
- * Limits sub-router — mounted at /instances/:instanceId/limits by the instances router.
- *   PUT    /   → set limits (audit log retention, block flag)
- *   DELETE /   → reset limits to defaults
- */
 import { Hono } from "hono";
 import { validator as zValidator } from "hono-openapi";
+import { Audit } from "../../../../../../utils/audit";
 import { ZitadelClient } from "../../../../../../zitadel/client";
 import { APIResponse } from "../../../../../utils/api-res";
+import { AuthHandler } from "../../../../../utils/authHandler";
 import { APIResponseSpec, APIRouteSpec } from "../../../../../utils/specHelpers";
+import { ZitadelAPIUtils } from "../../../../../utils/zitadel";
 import { DOCS_TAGS } from "../../../docs";
-import { handleZitadelError } from "../errors";
+import { InstancesModel } from "../model";
 import { InstanceLimitsModel } from "./model";
 
 export const router = new Hono().basePath("/limits");
@@ -20,27 +18,30 @@ router.put(
 	APIRouteSpec.authenticated({
 		summary: "Set instance limits",
 		description:
-			"Set the audit-log retention and/or the block flag for an instance. `block: true` blocks the instance.",
-		tags: [DOCS_TAGS.LIMITS],
+			"Set the audit-log retention and/or the block flag of an instance. `block: true` blocks the instance.",
+		tags: [DOCS_TAGS.INSTANCES_LIMITS],
 
 		responses: APIResponseSpec.describeWithWrongInputs(
-			APIResponseSpec.successNoData("Limits updated"),
+			APIResponseSpec.successNoData("Limits updated successfully"),
 			APIResponseSpec.notFound("Instance not found"),
-			APIResponseSpec.unauthorized(),
-			APIResponseSpec.forbidden(),
 		),
 	}),
 
+	zValidator("param", InstancesModel.InstanceId.Params),
 	zValidator("json", InstanceLimitsModel.Set.Body),
 
 	async (c) => {
-		const instanceId = c.req.param("instanceId") ?? "";
+		const authContext = AuthHandler.AuthContext.getAsSession(c);
+		// @ts-ignore - hono-openapi does not type "param" yet
+		const { instanceId } = c.req.valid("param") as InstancesModel.InstanceId.Params;
 		const body = c.req.valid("json");
+
 		try {
 			await ZitadelClient.setLimits(instanceId, body);
-			return APIResponse.successNoData(c, "Limits updated");
+			await Audit.log(authContext.user_sub, "instance.limits.set", instanceId, JSON.stringify(body));
+			return APIResponse.successNoData(c, "Limits updated successfully");
 		} catch (err) {
-			return handleZitadelError(c, err);
+			return ZitadelAPIUtils.handleError(c, err);
 		}
 	},
 );
@@ -50,23 +51,28 @@ router.delete(
 
 	APIRouteSpec.authenticated({
 		summary: "Reset instance limits",
-		tags: [DOCS_TAGS.LIMITS],
+		description: "Reset the instance's limits to the deployment defaults.",
+		tags: [DOCS_TAGS.INSTANCES_LIMITS],
 
-		responses: APIResponseSpec.describeBasic(
-			APIResponseSpec.successNoData("Limits reset"),
-			APIResponseSpec.unauthorized(),
-			APIResponseSpec.forbidden(),
+		responses: APIResponseSpec.describeWithWrongInputs(
+			APIResponseSpec.successNoData("Limits reset successfully"),
 			APIResponseSpec.notFound("Instance not found"),
 		),
 	}),
 
+	zValidator("param", InstancesModel.InstanceId.Params),
+
 	async (c) => {
-		const instanceId = c.req.param("instanceId") ?? "";
+		const authContext = AuthHandler.AuthContext.getAsSession(c);
+		// @ts-ignore - hono-openapi does not type "param" yet
+		const { instanceId } = c.req.valid("param") as InstancesModel.InstanceId.Params;
+
 		try {
 			await ZitadelClient.resetLimits(instanceId);
-			return APIResponse.successNoData(c, "Limits reset");
+			await Audit.log(authContext.user_sub, "instance.limits.reset", instanceId);
+			return APIResponse.successNoData(c, "Limits reset successfully");
 		} catch (err) {
-			return handleZitadelError(c, err);
+			return ZitadelAPIUtils.handleError(c, err);
 		}
 	},
 );

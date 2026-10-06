@@ -1,14 +1,69 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from "@nuxt/ui";
+import { useUserInfoStore } from "~/composables/stores/useUserStore";
 
-// Sidebar groups — delete the ones (and their pages) your app doesn't need.
-// LAVIAC has a single group: the virtual-instance management pages.
+const user = await useUserInfoStore().use();
+const isAdmin = computed(() => user.value?.user_role === "admin");
+
 const mainItems: NavigationMenuItem[] = [
+	{
+		label: "Overview",
+		icon: "i-lucide-layout-dashboard",
+		to: "/dashboard",
+		exact: true,
+	},
 	{
 		label: "Instances",
 		icon: "i-lucide-server",
-		to: "/instances",
-		exact: true,
+		to: "/dashboard/instances",
+	},
+];
+
+const adminItems: NavigationMenuItem[] = [
+	{
+		label: "Admin",
+		icon: "i-lucide-shield",
+		type: "label",
+	},
+	{
+		label: "Statistics",
+		icon: "i-lucide-chart-column",
+		to: "/dashboard/admin/statistics",
+	},
+	{
+		label: "System",
+		icon: "i-lucide-cpu",
+		to: "/dashboard/admin/system",
+	},
+	{
+		label: "Updates",
+		icon: "i-lucide-package-check",
+		to: "/dashboard/admin/updates",
+	},
+	{
+		label: "Audit Log",
+		icon: "i-lucide-scroll-text",
+		to: "/dashboard/admin/audit",
+	},
+	{
+		label: "Tasks",
+		icon: "i-lucide-list-checks",
+		to: "/dashboard/admin/tasks",
+	},
+	{
+		label: "Sessions",
+		icon: "i-lucide-monitor-smartphone",
+		to: "/dashboard/admin/sessions",
+	},
+];
+
+const footerItems: NavigationMenuItem[] = [
+	{
+		label: "API Docs",
+		icon: "i-lucide-book-open",
+		to: "/api/docs/v1",
+		target: "_blank",
+		external: true,
 	},
 ];
 </script>
@@ -31,7 +86,7 @@ const mainItems: NavigationMenuItem[] = [
 			:max-size="30"
 		>
 			<template #header="{ collapsed }">
-				<NuxtLink to="/instances" :class="`${!collapsed ? 'ms-2.5' : ''} flex items-center gap-1.5`">
+				<NuxtLink to="/dashboard" :class="`${!collapsed ? 'ms-2.5' : ''} flex items-center gap-1.5`">
 					<ImgAppLogo v-if="!collapsed" class="h-7" />
 					<ImgAppIcon v-else class="h-8 w-8" />
 				</NuxtLink>
@@ -39,6 +94,20 @@ const mainItems: NavigationMenuItem[] = [
 
 			<template #default="{ collapsed }">
 				<UNavigationMenu :collapsed="collapsed" :items="mainItems" orientation="vertical" />
+
+				<UNavigationMenu
+					v-if="isAdmin"
+					:collapsed="collapsed"
+					:items="adminItems"
+					orientation="vertical"
+				/>
+
+				<UNavigationMenu
+					:collapsed="collapsed"
+					:items="footerItems"
+					orientation="vertical"
+					class="mt-auto"
+				/>
 			</template>
 
 			<template #footer="{ collapsed }">

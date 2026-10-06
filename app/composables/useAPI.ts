@@ -1,7 +1,7 @@
 /**
  * useAPI — the single gateway to the generated API SDK.
  *
- * On the server it wraps the call in `useAsyncData`; on the client it reads the session cookie,
+ * On the server it applies the session cookie's token and calls the SDK; on the client it reads the session cookie,
  * applies it to the generated client via `updateAPIClient`, redirects to `/auth/login` on a missing
  * or 401 token, and always returns the backend's `{ success, code, message, data }` envelope
  * (errors are normalized into the envelope, never thrown). Callers branch on `result.success`.
@@ -14,21 +14,15 @@ export namespace UseAPITypes {
 
 	export type DefaultReturn<TReturn> = TReturn;
 
-	/** The LAVIAC `{ success, code, message, data }` envelope, discriminated on `success`. */
-	export type Envelope<TData> =
-		| { success: true; code: number; message: string; data: TData }
-		| { success: false; code: number; message: string; data: null };
-
-	/**
-	 * Extract the envelope payload type from a `@hey-api/client-fetch` RequestResult.
-	 * client-fetch resolves to `{ data?: <envelope>, error?: <envelope>, ... }`; the
-	 * envelope's `data` field is the actual payload (see the `unwrap` helper below).
-	 */
-	export type EnvelopeData<W> = W extends { data?: infer Env }
-		? NonNullable<Env> extends { data?: infer D }
-			? NonNullable<D>
-			: unknown
-		: unknown;
+	export type UseAPIReturnType<TReturn> = Promise<
+		| TReturn
+		| {
+				readonly success: false;
+				readonly code: 500;
+				readonly message: string;
+				readonly data: null;
+		  }
+	>;
 
 	export type AsyncDataReturn<TReturn> = {
 		data: Ref<DefaultReturn<TReturn>>;
@@ -141,19 +135,15 @@ class LazyAsyncDataRequestWrapper<TReturn> {
 	}
 }
 
-// LAVIAC divergence (see openapi-ts.config.ts): the generated client is `@hey-api/client-fetch`,
-// so each call resolves to `{ data?, error? }` — unwrap to the envelope before branching on it.
-const unwrap = (raw: any): any => raw?.data ?? raw?.error ?? raw;
-
 export async function useAPI<TReturn>(
-	handler: (api: UseAPITypes.APIClient) => Promise<TReturn>,
+	handler: (api: UseAPITypes.APIClient) => TReturn,
 	disableAuthRedirect = false,
-): Promise<UseAPITypes.Envelope<UseAPITypes.EnvelopeData<TReturn>>> {
+): UseAPITypes.UseAPIReturnType<TReturn> {
 	try {
 		if (import.meta.server) {
 			const sessionToken = useAppCookies().sessionToken.get().value;
 			updateAPIClient(sessionToken ?? null);
-			return unwrap(await handler(baseAPIClient));
+			return await handler(baseAPIClient);
 		} else if (import.meta.client) {
 			const sessionToken = useAppCookies().sessionToken.get();
 
@@ -166,7 +156,7 @@ export async function useAPI<TReturn>(
 				}
 			}
 
-			const result = unwrap(await handler(baseAPIClient));
+			const result = await handler(baseAPIClient);
 
 			if ((result as any)?.success === false && (result as any)?.code === 401) {
 				updateAPIClient(null);

@@ -15,10 +15,10 @@ useSeoMeta({
 const route = useRoute();
 const toast = useToast();
 
-// Only follow internal redirects (`/…`, not `//evil.example`); default to the instances list.
+// Only follow internal redirects (`/…`, not `//evil.example`); default to the dashboard.
 const requestedUrl = route.query.url?.toString() ?? "";
 const redirectUrl =
-	requestedUrl.startsWith("/") && !requestedUrl.startsWith("//") ? requestedUrl : "/instances";
+	requestedUrl.startsWith("/") && !requestedUrl.startsWith("//") ? requestedUrl : "/dashboard";
 
 const errorKey = route.query.error as string | undefined;
 const errorText = computed(() => {
@@ -127,9 +127,13 @@ function signInWithZitadel() {
 
 <template>
   <div class="space-y-4">
-    <div v-if="errorText" class="rounded-md border border-red-800 bg-red-950/40 p-3 text-sm text-red-300">
-      {{ errorText }}
-    </div>
+    <UAlert
+      v-if="errorText"
+      color="error"
+      variant="subtle"
+      icon="i-lucide-alert-circle"
+      :description="errorText"
+    />
 
     <UAuthForm
       v-if="staticEnabled"
@@ -153,11 +157,12 @@ function signInWithZitadel() {
       @click="signInWithZitadel"
     />
 
-    <p
+    <UAlert
       v-if="!staticEnabled && !oidcEnabled"
-      class="rounded-md border border-amber-800 bg-amber-950/40 p-3 text-sm text-amber-300"
-    >
-      No login method is configured. Set the Zitadel OIDC variables or LAVIAC_STATIC_AUTH_PASSWORD_HASH.
-    </p>
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-alert-triangle"
+      description="No login method is configured. Set the Zitadel OIDC variables or LAVIAC_STATIC_AUTH_PASSWORD_HASH."
+    />
   </div>
 </template>

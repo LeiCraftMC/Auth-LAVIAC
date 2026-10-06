@@ -11,8 +11,10 @@ const toast = useToast();
 const userInfoStore = useUserInfoStore();
 const userInfo = await userInfoStore.use();
 
+const isAdmin = computed(() => userInfo.value?.user_role === "admin");
+
 const user = computed(() => {
-	const name = userInfo.value?.name ?? userInfo.value?.sub ?? "Unknown User";
+	const name = userInfo.value?.user_name ?? userInfo.value?.user_sub ?? "Unknown User";
 	return {
 		name,
 		avatar: {
@@ -54,6 +56,22 @@ const items = computed<DropdownMenuItem[][]>(() => [
 			label: user.value.name,
 			avatar: user.value.avatar,
 		},
+	],
+	[
+		{
+			label: "Instances",
+			icon: "i-lucide-server",
+			to: "/dashboard/instances",
+		},
+		...(isAdmin.value
+			? [
+					{
+						label: "Manage Sessions",
+						icon: "i-lucide-monitor-smartphone",
+						to: "/dashboard/admin/sessions",
+					},
+				]
+			: []),
 	],
 	[
 		{

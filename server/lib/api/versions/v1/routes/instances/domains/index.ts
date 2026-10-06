@@ -1,18 +1,13 @@
-/**
- * Domains sub-router — mounted at /instances/:instanceId/domains by the instances router.
- *   GET    /              → list domains
- *   POST   /              → add a custom domain
- *   POST   /_set_primary  → set the primary domain
- *   DELETE /:domain       → remove a custom domain
- */
 import { Hono } from "hono";
 import { validator as zValidator } from "hono-openapi";
+import { Audit } from "../../../../../../utils/audit";
 import { ZitadelClient } from "../../../../../../zitadel/client";
 import { APIResponse } from "../../../../../utils/api-res";
+import { AuthHandler } from "../../../../../utils/authHandler";
 import { APIResponseSpec, APIRouteSpec } from "../../../../../utils/specHelpers";
+import { ZitadelAPIUtils } from "../../../../../utils/zitadel";
 import { DOCS_TAGS } from "../../../docs";
-import { handleZitadelError } from "../errors";
-import { mapDomain } from "../mapper";
+import { InstancesModel } from "../model";
 import { InstanceDomainsModel } from "./model";
 
 export const router = new Hono().basePath("/domains");
@@ -22,22 +17,30 @@ router.get(
 
 	APIRouteSpec.authenticated({
 		summary: "List instance domains",
-		tags: [DOCS_TAGS.DOMAINS],
+		description: "List the generated and custom domains of a virtual instance.",
+		tags: [DOCS_TAGS.INSTANCES_DOMAINS],
 
-		responses: APIResponseSpec.describeBasic(
-			APIResponseSpec.success("Domains", InstanceDomainsModel.List.Response),
-			APIResponseSpec.unauthorized(),
-			APIResponseSpec.forbidden(),
+		responses: APIResponseSpec.describeWithWrongInputs(
+			APIResponseSpec.success("Domains retrieved successfully", InstanceDomainsModel.GetAll.Response),
+			APIResponseSpec.notFound("Instance not found"),
 		),
 	}),
 
+	zValidator("param", InstancesModel.InstanceId.Params),
+
 	async (c) => {
-		const instanceId = c.req.param("instanceId") ?? "";
+		// @ts-ignore - hono-openapi does not type "param" yet
+		const { instanceId } = c.req.valid("param") as InstancesModel.InstanceId.Params;
+
 		try {
 			const domains = await ZitadelClient.listDomains(instanceId);
-			return APIResponse.success(c, "Domains", domains.map(mapDomain));
+			return APIResponse.success(
+				c,
+				"Domains retrieved successfully",
+				domains.map(ZitadelAPIUtils.mapDomain),
+			);
 		} catch (err) {
-			return handleZitadelError(c, err);
+			return ZitadelAPIUtils.handleError(c, err);
 		}
 	},
 );
@@ -47,26 +50,30 @@ router.post(
 
 	APIRouteSpec.authenticated({
 		summary: "Add a custom domain",
-		tags: [DOCS_TAGS.DOMAINS],
+		description: "Attach a custom domain to a virtual instance.",
+		tags: [DOCS_TAGS.INSTANCES_DOMAINS],
 
 		responses: APIResponseSpec.describeWithWrongInputs(
-			APIResponseSpec.createdNoData("Domain added"),
-			APIResponseSpec.conflict("Domain already exists"),
-			APIResponseSpec.unauthorized(),
-			APIResponseSpec.forbidden(),
+			APIResponseSpec.createdNoData("Domain added successfully"),
+			APIResponseSpec.conflict("Conflict: Domain already exists"),
 		),
 	}),
 
+	zValidator("param", InstancesModel.InstanceId.Params),
 	zValidator("json", InstanceDomainsModel.Add.Body),
 
 	async (c) => {
-		const instanceId = c.req.param("instanceId") ?? "";
+		const authContext = AuthHandler.AuthContext.getAsSession(c);
+		// @ts-ignore - hono-openapi does not type "param" yet
+		const { instanceId } = c.req.valid("param") as InstancesModel.InstanceId.Params;
 		const { domain } = c.req.valid("json");
+
 		try {
 			await ZitadelClient.addDomain(instanceId, domain);
-			return APIResponse.createdNoData(c, "Domain added");
+			await Audit.log(authContext.user_sub, "instance.domain.add", instanceId, domain);
+			return APIResponse.createdNoData(c, "Domain added successfully");
 		} catch (err) {
-			return handleZitadelError(c, err);
+			return ZitadelAPIUtils.handleError(c, err);
 		}
 	},
 );
@@ -76,26 +83,30 @@ router.post(
 
 	APIRouteSpec.authenticated({
 		summary: "Set the primary domain",
-		tags: [DOCS_TAGS.DOMAINS],
+		description: "Make one of the instance's domains its primary domain.",
+		tags: [DOCS_TAGS.INSTANCES_DOMAINS],
 
 		responses: APIResponseSpec.describeWithWrongInputs(
-			APIResponseSpec.successNoData("Primary domain updated"),
+			APIResponseSpec.successNoData("Primary domain updated successfully"),
 			APIResponseSpec.notFound("Domain not found"),
-			APIResponseSpec.unauthorized(),
-			APIResponseSpec.forbidden(),
 		),
 	}),
 
+	zValidator("param", InstancesModel.InstanceId.Params),
 	zValidator("json", InstanceDomainsModel.SetPrimary.Body),
 
 	async (c) => {
-		const instanceId = c.req.param("instanceId") ?? "";
+		const authContext = AuthHandler.AuthContext.getAsSession(c);
+		// @ts-ignore - hono-openapi does not type "param" yet
+		const { instanceId } = c.req.valid("param") as InstancesModel.InstanceId.Params;
 		const { domain } = c.req.valid("json");
+
 		try {
 			await ZitadelClient.setPrimaryDomain(instanceId, domain);
-			return APIResponse.successNoData(c, "Primary domain updated");
+			await Audit.log(authContext.user_sub, "instance.domain.set_primary", instanceId, domain);
+			return APIResponse.successNoData(c, "Primary domain updated successfully");
 		} catch (err) {
-			return handleZitadelError(c, err);
+			return ZitadelAPIUtils.handleError(c, err);
 		}
 	},
 );
@@ -105,24 +116,28 @@ router.delete(
 
 	APIRouteSpec.authenticated({
 		summary: "Remove a custom domain",
-		tags: [DOCS_TAGS.DOMAINS],
+		description: "Detach a custom domain from a virtual instance. Generated domains stay.",
+		tags: [DOCS_TAGS.INSTANCES_DOMAINS],
 
-		responses: APIResponseSpec.describeBasic(
-			APIResponseSpec.successNoData("Domain removed"),
-			APIResponseSpec.unauthorized(),
-			APIResponseSpec.forbidden(),
+		responses: APIResponseSpec.describeWithWrongInputs(
+			APIResponseSpec.successNoData("Domain removed successfully"),
 			APIResponseSpec.notFound("Domain not found"),
 		),
 	}),
 
+	zValidator("param", InstanceDomainsModel.Domain.Params),
+
 	async (c) => {
-		const instanceId = c.req.param("instanceId") ?? "";
-		const domain = c.req.param("domain");
+		const authContext = AuthHandler.AuthContext.getAsSession(c);
+		// @ts-ignore - hono-openapi does not type "param" yet
+		const { instanceId, domain } = c.req.valid("param") as InstanceDomainsModel.Domain.Params;
+
 		try {
 			await ZitadelClient.removeDomain(instanceId, domain);
-			return APIResponse.successNoData(c, "Domain removed");
+			await Audit.log(authContext.user_sub, "instance.domain.remove", instanceId, domain);
+			return APIResponse.successNoData(c, "Domain removed successfully");
 		} catch (err) {
-			return handleZitadelError(c, err);
+			return ZitadelAPIUtils.handleError(c, err);
 		}
 	},
 );

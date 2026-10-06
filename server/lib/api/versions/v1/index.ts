@@ -3,9 +3,9 @@ import type { GenerateSpecOptions } from "hono-openapi";
 import { AppConstants } from "../../../utils/constants";
 import { APIVersionRouter } from "../../utils/apiVersionRouter";
 import { authMiddlewareV1 } from "./middleware/auth";
+import { router as adminRouter } from "./routes/admin";
 import { router as authRouter } from "./routes/auth";
 import { router as domainsRouter } from "./routes/domains";
-import { router as healthRouter } from "./routes/health";
 import { router as instancesRouter } from "./routes/instances";
 
 const openAPIConfig: Partial<GenerateSpecOptions> = {
@@ -20,8 +20,7 @@ const openAPIConfig: Partial<GenerateSpecOptions> = {
 				bearerAuth: {
 					type: "http",
 					scheme: "bearer",
-					bearerFormat: "JWT",
-					description: "Enter your bearer token in the format **Bearer <token>**",
+					description: "Enter your bearer token in the format **Bearer &lt;token&gt;**",
 				},
 			},
 			responses: {
@@ -31,6 +30,7 @@ const openAPIConfig: Partial<GenerateSpecOptions> = {
 			},
 		},
 
+		// Disable global security because Scalar could not handle multiple security schemes properly
 		security: [
 			{
 				bearerAuth: [],
@@ -50,48 +50,119 @@ const openAPIConfig: Partial<GenerateSpecOptions> = {
 
 		"x-tagGroups": [
 			{
-				name: "System",
-				tags: ["System"],
-			},
-			{
 				name: "Authentication",
 				tags: ["Authentication"],
 			},
 			{
 				name: "Instances",
-				tags: ["Instances", "Domains", "Limits"],
+				tags: [
+					"Instances",
+					"Instances / Domains",
+					"Instances / Limits",
+					"Instances / Branding",
+					"Domains",
+				],
+			},
+			{
+				name: "Admin",
+				tags: [
+					"Admin / Statistics",
+					"Admin / Host",
+					"Admin / Updates",
+					"Admin / Audit Log",
+					"Admin / Tasks",
+					"Admin / Sessions",
+				],
 			},
 		],
 
 		tags: [
 			{
-				name: "System",
-				description: "Service health and metadata.",
-			},
-			{
 				name: "Authentication",
 				description:
-					"Zitadel OIDC login/logout, the env-based static fallback login, and the current-user endpoint.",
+					"Zitadel OIDC login/logout, the env-based static fallback login, and the current-user endpoint",
 			},
+
 			{
 				name: "Instances",
-				description: "Virtual instance CRUD over the Zitadel System API.",
+				description: "Virtual instance CRUD over the Zitadel System API",
 			},
 			{
-				name: "Domains",
-				// @ts-expect-error
+				name: "Instances / Domains",
+				// @ts-ignore
 				"x-displayName": "Domains",
 				summary: "Domains",
 				parent: "Instances",
-				description: "Cross-instance and per-instance custom domain management.",
+				description: "Per-instance custom domain management",
 			},
 			{
-				name: "Limits",
-				// @ts-expect-error
+				name: "Instances / Limits",
+				// @ts-ignore
 				"x-displayName": "Limits",
 				summary: "Limits",
 				parent: "Instances",
-				description: "Per-instance limits and quota.",
+				description: "Per-instance limits and quota",
+			},
+			{
+				name: "Instances / Branding",
+				// @ts-ignore
+				"x-displayName": "Branding",
+				summary: "Branding",
+				parent: "Instances",
+				description: "Per-instance label policy and the LAVIAC default branding",
+			},
+			{
+				name: "Domains",
+				description: "Cross-instance domain checks",
+			},
+
+			{
+				name: "Admin / Statistics",
+				// @ts-ignore
+				"x-displayName": "Statistics",
+				summary: "Statistics",
+				parent: "Admin",
+				description: "Cross-instance statistics and usage",
+			},
+			{
+				name: "Admin / Host",
+				// @ts-ignore
+				"x-displayName": "Host",
+				summary: "Host",
+				parent: "Admin",
+				description: "Status and metrics of the host VM",
+			},
+			{
+				name: "Admin / Updates",
+				// @ts-ignore
+				"x-displayName": "Updates",
+				summary: "Updates",
+				parent: "Admin",
+				description: "OS package updates of the host VM and Zitadel releases",
+			},
+			{
+				name: "Admin / Audit Log",
+				// @ts-ignore
+				"x-displayName": "Audit Log",
+				summary: "Audit Log",
+				parent: "Admin",
+				description: "The LAVIAC audit log",
+			},
+			{
+				name: "Admin / Tasks",
+				// @ts-ignore
+				"x-displayName": "Tasks",
+				summary: "Tasks",
+				parent: "Admin",
+				description: "Background tasks and their logs",
+			},
+			{
+				name: "Admin / Sessions",
+				// @ts-ignore
+				"x-displayName": "Sessions",
+				summary: "Sessions",
+				parent: "Admin",
+				description: "Active LAVIAC sessions",
 			},
 		],
 	},
@@ -101,10 +172,10 @@ const router = new Hono();
 
 router.use(authMiddlewareV1);
 
-router.route("/", healthRouter);
 router.route("/", authRouter);
 router.route("/", instancesRouter);
 router.route("/", domainsRouter);
+router.route("/", adminRouter);
 
 export class APIv1Router extends APIVersionRouter {
 	constructor() {

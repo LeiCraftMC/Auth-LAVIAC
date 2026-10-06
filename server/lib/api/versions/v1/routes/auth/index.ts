@@ -6,7 +6,7 @@
  *   GET  /auth/callback  → exchange code, check admin role, set session cookie, redirect
  *   GET  /auth/methods   → which login methods are configured (login-page discovery)
  *   POST /auth/logout    → destroy session, clear cookie
- *   GET  /auth/me        → current admin user
+ *   GET  /auth/session   → current session (= the signed-in admin, there is no users table)
  *
  * State / nonce / PKCE verifier are round-tripped in short-lived HttpOnly cookies.
  */
@@ -17,6 +17,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { validator as zValidator } from "hono-openapi";
 import * as oidc from "openid-client";
 import { OIDCHandler } from "../../../../../oidc/handler";
+import { Audit } from "../../../../../utils/audit";
 import { ConfigHandler } from "../../../../../utils/config";
 import { Logger } from "../../../../../utils/logger";
 import { APIResponse } from "../../../../utils/api-res";
@@ -138,6 +139,11 @@ function sessionCookieOptions(maxAge?: number) {
 	};
 }
 
+/** Only internal paths — not `//evil.example` or `/\evil.example`, which browsers treat as hosts. */
+function safeReturnUrl(url: string | undefined): string {
+	return url && /^\/(?![/\\])/.test(url) ? url : "/dashboard";
+}
+
 function redirectUri(): string {
 	const appUrl = (ConfigHandler.getConfig()?.APP_URL ?? "").replace(/\/$/, "");
 	return `${appUrl}/api/v1/auth/callback`;
@@ -149,7 +155,7 @@ router.get(
 	APIRouteSpec.unauthenticated({
 		summary: "Begin OIDC login",
 		description: "Redirects to the Zitadel authorization endpoint (Authorization Code + PKCE).",
-		tags: [DOCS_TAGS.AUTH],
+		tags: [DOCS_TAGS.AUTHENTICATION],
 
 		responses: {
 			302: {
@@ -167,7 +173,7 @@ router.get(
 		setCookie(c, OAUTH_NONCE_COOKIE, nonce, httpCookieOptions(TEN_MINUTES));
 		setCookie(c, OAUTH_VERIFIER_COOKIE, codeVerifier, httpCookieOptions(TEN_MINUTES));
 
-		const returnUrl = c.req.query("url") ?? "/";
+		const returnUrl = safeReturnUrl(c.req.query("url"));
 		setCookie(c, OAUTH_REDIRECT_COOKIE, returnUrl, httpCookieOptions(TEN_MINUTES));
 
 		const url = await OIDCHandler.getAuthorizationUrl({
@@ -187,7 +193,7 @@ router.get(
 		summary: "OIDC callback",
 		description:
 			"Exchanges the authorization code for tokens, checks the admin project role, creates a session, and redirects to the app.",
-		tags: [DOCS_TAGS.AUTH],
+		tags: [DOCS_TAGS.AUTHENTICATION],
 
 		responses: {
 			302: {
@@ -200,7 +206,7 @@ router.get(
 		const state = getCookie(c, OAUTH_STATE_COOKIE) ?? "";
 		const nonce = getCookie(c, OAUTH_NONCE_COOKIE) ?? "";
 		const verifier = getCookie(c, OAUTH_VERIFIER_COOKIE) ?? "";
-		const returnUrl = getCookie(c, OAUTH_REDIRECT_COOKIE) ?? "/";
+		const returnUrl = safeReturnUrl(getCookie(c, OAUTH_REDIRECT_COOKIE));
 
 		const callbackUrl = new URL(c.req.url).href;
 
@@ -230,6 +236,7 @@ router.get(
 				method: "oidc",
 			});
 			setCookie(c, SESSION_COOKIE, session.token, sessionCookieOptions());
+			await Audit.log(info.sub, "auth.login", null, "oidc");
 		} catch (err) {
 			Logger.error("OIDC callback failed:", err);
 			return c.redirect(`/auth/login?error=auth_failed`, 302);
@@ -256,7 +263,7 @@ router.post(
 		summary: "Static fallback login",
 		description:
 			"Authenticates the env-configured static admin account (LAVIAC_STATIC_AUTH_USERNAME / LAVIAC_STATIC_AUTH_PASSWORD_HASH — required at boot). Rate-limited.",
-		tags: [DOCS_TAGS.AUTH],
+		tags: [DOCS_TAGS.AUTHENTICATION],
 
 		responses: APIResponseSpec.describeWithWrongInputs(
 			APIResponseSpec.success("Login successful", AuthModel.Login.Response),
@@ -316,6 +323,7 @@ router.post(
 			});
 
 			Logger.info(`Static login succeeded for "${staticUsername}" (client: ${clientId}).`);
+			await Audit.log(staticUsername, "auth.login", null, "static");
 
 			return APIResponse.success(c, "Login successful", session satisfies AuthModel.Login.Response);
 		} catch (error: any) {
@@ -332,7 +340,7 @@ router.get(
 		summary: "Available authentication methods",
 		description:
 			"Reports which login methods are configured, so the login page can render the right forms.",
-		tags: [DOCS_TAGS.AUTH],
+		tags: [DOCS_TAGS.AUTHENTICATION],
 
 		responses: APIResponseSpec.describeBasic(
 			APIResponseSpec.success("Authentication methods", AuthModel.Methods.Response),
@@ -354,7 +362,7 @@ router.post(
 	APIRouteSpec.authenticated({
 		summary: "Log out",
 		description: "Invalidate the current session and clear the session cookie.",
-		tags: [DOCS_TAGS.AUTH],
+		tags: [DOCS_TAGS.AUTHENTICATION],
 
 		responses: APIResponseSpec.describeBasic(
 			APIResponseSpec.successNoData("Logout successful"),
@@ -372,6 +380,7 @@ router.post(
 		}
 
 		await SessionHandler.inValidateSession(authContext.id);
+		await Audit.log(authContext.user_sub, "auth.logout");
 
 		// LAVIAC: the OIDC callback sets this cookie server-side, so it is cleared here too.
 		deleteCookie(c, SESSION_COOKIE, { path: "/" });
@@ -381,32 +390,36 @@ router.post(
 );
 
 router.get(
-	"/me",
+	"/session",
 
 	APIRouteSpec.authenticated({
-		summary: "Current admin user",
-		description: "Returns the authenticated admin user, or an error if not signed in.",
-		tags: [DOCS_TAGS.AUTH],
+		summary: "Get Current Session",
+		description:
+			"Retrieve the current session — also the signed-in admin's identity (Zitadel subject, name, email, role, login method)",
+		tags: [DOCS_TAGS.AUTHENTICATION],
 
 		responses: APIResponseSpec.describeBasic(
-			APIResponseSpec.success("Current user", AuthModel.Me.Response),
-			APIResponseSpec.unauthorized("Not authenticated"),
+			APIResponseSpec.success("Session info retrieved successfully", AuthModel.Session.Response),
+			APIResponseSpec.unauthorized(
+				"Unauthorized: Invalid or missing session token / Your Auth Context is not a session",
+			),
 		),
 	}),
 
-	(c) => {
-		const authContext = AuthHandler.AuthContext.getAsSession(c);
-
+	async (c) => {
+		const authContext = AuthHandler.AuthContext.get(c);
 		if (authContext.type !== "session") {
-			return APIResponse.unauthorized(c, "Not authenticated");
+			return APIResponse.unauthorized(c, "Your Auth Context is not a session");
 		}
 
-		return APIResponse.success(c, "Current user", {
-			sub: authContext.user_sub,
-			email: authContext.user_email,
-			name: authContext.user_name,
-			role: authContext.user_role,
+		return APIResponse.success(c, "Session info retrieved successfully", {
+			user_sub: authContext.user_sub,
+			user_email: authContext.user_email,
+			user_name: authContext.user_name,
+			user_role: authContext.user_role,
 			login_method: authContext.login_method,
-		} satisfies AuthModel.Me.Response);
+			created_at: authContext.created_at,
+			expires_at: authContext.expires_at,
+		} satisfies AuthModel.Session.Response);
 	},
 );

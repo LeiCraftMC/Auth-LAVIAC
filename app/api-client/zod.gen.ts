@@ -2,22 +2,9 @@
 
 import * as z from 'zod';
 
-/**
- * Service is healthy
- */
-export const zGetHealthResponse = z.object({
-    success: z.literal(true),
-    code: z.literal(200),
-    message: z.literal('Service is healthy'),
-    data: z.object({
-        status: z.literal('ok'),
-        uptime: z.number()
-    })
-});
-
 export const zPostAuthLoginBody = z.object({
-    username: z.string().min(1),
-    password: z.string().min(1)
+    username: z.string(),
+    password: z.string()
 });
 
 /**
@@ -28,14 +15,14 @@ export const zPostAuthLoginResponse = z.object({
     code: z.literal(200),
     message: z.literal('Login successful'),
     data: z.object({
-        token: z.string(),
         user_sub: z.string(),
         user_email: z.string().nullable(),
         user_name: z.string().nullable(),
         user_role: z.enum(['admin', 'member']),
         login_method: z.enum(['oidc', 'static']),
-        created_at: z.number(),
-        expires_at: z.number()
+        created_at: z.int().gte(-9007199254740991).lte(9007199254740991),
+        expires_at: z.int().gte(-9007199254740991).lte(9007199254740991),
+        token: z.string()
     })
 });
 
@@ -63,28 +50,30 @@ export const zPostAuthLogoutResponse = z.object({
 });
 
 /**
- * Current user
+ * Session info retrieved successfully
  */
-export const zGetAuthMeResponse = z.object({
+export const zGetAuthSessionResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
-    message: z.literal('Current user'),
+    message: z.literal('Session info retrieved successfully'),
     data: z.object({
-        sub: z.string(),
-        email: z.string().nullable(),
-        name: z.string().nullable(),
-        role: z.enum(['admin', 'member']),
-        login_method: z.enum(['oidc', 'static'])
+        user_sub: z.string(),
+        user_email: z.string().nullable(),
+        user_name: z.string().nullable(),
+        user_role: z.enum(['admin', 'member']),
+        login_method: z.enum(['oidc', 'static']),
+        created_at: z.int().gte(-9007199254740991).lte(9007199254740991),
+        expires_at: z.int().gte(-9007199254740991).lte(9007199254740991)
     })
 });
 
 /**
- * Instances
+ * Instances retrieved successfully
  */
 export const zGetInstancesResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
-    message: z.literal('Instances'),
+    message: z.literal('Instances retrieved successfully'),
     data: z.array(z.object({
         id: z.string(),
         name: z.string(),
@@ -135,44 +124,45 @@ export const zPostInstancesBody = z.object({
 });
 
 /**
- * Instance created
+ * Instance created successfully
  */
 export const zPostInstancesResponse = z.object({
     success: z.literal(true),
     code: z.literal(201),
-    message: z.literal('Instance created'),
+    message: z.literal('Instance created successfully'),
     data: z.object({
         instanceId: z.string(),
         pat: z.string().optional(),
-        machineKey: z.string().optional()
+        machineKey: z.string().optional(),
+        brandingTaskId: z.number().nullable()
     })
 });
 
-export const zDeleteInstancesByIdPath = z.object({
-    id: z.string()
+export const zDeleteInstancesByInstanceIdPath = z.object({
+    instanceId: z.string().min(1).max(64)
 });
 
 /**
- * Instance deleted
+ * Instance deleted successfully
  */
-export const zDeleteInstancesByIdResponse = z.object({
+export const zDeleteInstancesByInstanceIdResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
-    message: z.literal('Instance deleted'),
+    message: z.literal('Instance deleted successfully'),
     data: z.null()
 });
 
-export const zGetInstancesByIdPath = z.object({
-    id: z.string()
+export const zGetInstancesByInstanceIdPath = z.object({
+    instanceId: z.string().min(1).max(64)
 });
 
 /**
- * Instance
+ * Instance retrieved successfully
  */
-export const zGetInstancesByIdResponse = z.object({
+export const zGetInstancesByInstanceIdResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
-    message: z.literal('Instance'),
+    message: z.literal('Instance retrieved successfully'),
     data: z.object({
         id: z.string(),
         name: z.string(),
@@ -188,21 +178,21 @@ export const zGetInstancesByIdResponse = z.object({
     })
 });
 
-export const zPutInstancesByIdBody = z.object({
+export const zPutInstancesByInstanceIdBody = z.object({
     instanceName: z.string().min(1)
 });
 
-export const zPutInstancesByIdPath = z.object({
-    id: z.string()
+export const zPutInstancesByInstanceIdPath = z.object({
+    instanceId: z.string().min(1).max(64)
 });
 
 /**
- * Instance updated
+ * Instance updated successfully
  */
-export const zPutInstancesByIdResponse = z.object({
+export const zPutInstancesByInstanceIdResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
-    message: z.literal('Instance updated'),
+    message: z.literal('Instance updated successfully'),
     data: z.object({
         id: z.string(),
         name: z.string(),
@@ -219,16 +209,16 @@ export const zPutInstancesByIdResponse = z.object({
 });
 
 export const zGetInstancesByInstanceIdDomainsPath = z.object({
-    instanceId: z.string()
+    instanceId: z.string().min(1).max(64)
 });
 
 /**
- * Domains
+ * Domains retrieved successfully
  */
 export const zGetInstancesByInstanceIdDomainsResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
-    message: z.literal('Domains'),
+    message: z.literal('Domains retrieved successfully'),
     data: z.array(z.object({
         domain: z.string(),
         primary: z.boolean().optional(),
@@ -237,67 +227,67 @@ export const zGetInstancesByInstanceIdDomainsResponse = z.object({
 });
 
 export const zPostInstancesByInstanceIdDomainsBody = z.object({
-    domain: z.string().min(1)
+    domain: z.string().min(1).max(253)
 });
 
 export const zPostInstancesByInstanceIdDomainsPath = z.object({
-    instanceId: z.string()
+    instanceId: z.string().min(1).max(64)
 });
 
 /**
- * Domain added
+ * Domain added successfully
  */
 export const zPostInstancesByInstanceIdDomainsResponse = z.object({
     success: z.literal(true),
     code: z.literal(201),
-    message: z.literal('Domain added'),
+    message: z.literal('Domain added successfully'),
     data: z.null()
 });
 
 export const zPostInstancesByInstanceIdDomainsSetPrimaryBody = z.object({
-    domain: z.string().min(1)
+    domain: z.string().min(1).max(253)
 });
 
 export const zPostInstancesByInstanceIdDomainsSetPrimaryPath = z.object({
-    instanceId: z.string()
+    instanceId: z.string().min(1).max(64)
 });
 
 /**
- * Primary domain updated
+ * Primary domain updated successfully
  */
 export const zPostInstancesByInstanceIdDomainsSetPrimaryResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
-    message: z.literal('Primary domain updated'),
+    message: z.literal('Primary domain updated successfully'),
     data: z.null()
 });
 
 export const zDeleteInstancesByInstanceIdDomainsByDomainPath = z.object({
-    instanceId: z.string(),
-    domain: z.string()
+    instanceId: z.string().min(1).max(64),
+    domain: z.string().min(1).max(253)
 });
 
 /**
- * Domain removed
+ * Domain removed successfully
  */
 export const zDeleteInstancesByInstanceIdDomainsByDomainResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
-    message: z.literal('Domain removed'),
+    message: z.literal('Domain removed successfully'),
     data: z.null()
 });
 
 export const zDeleteInstancesByInstanceIdLimitsPath = z.object({
-    instanceId: z.string()
+    instanceId: z.string().min(1).max(64)
 });
 
 /**
- * Limits reset
+ * Limits reset successfully
  */
 export const zDeleteInstancesByInstanceIdLimitsResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
-    message: z.literal('Limits reset'),
+    message: z.literal('Limits reset successfully'),
     data: z.null()
 });
 
@@ -307,31 +297,515 @@ export const zPutInstancesByInstanceIdLimitsBody = z.object({
 });
 
 export const zPutInstancesByInstanceIdLimitsPath = z.object({
-    instanceId: z.string()
+    instanceId: z.string().min(1).max(64)
 });
 
 /**
- * Limits updated
+ * Limits updated successfully
  */
 export const zPutInstancesByInstanceIdLimitsResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
-    message: z.literal('Limits updated'),
+    message: z.literal('Limits updated successfully'),
     data: z.null()
 });
 
-export const zGetDomainsByDomainExistsPath = z.object({
-    domain: z.string()
+export const zGetInstancesByInstanceIdBrandingPath = z.object({
+    instanceId: z.string().min(1).max(64)
 });
 
 /**
- * Domain availability
+ * Branding retrieved successfully
+ */
+export const zGetInstancesByInstanceIdBrandingResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Branding retrieved successfully'),
+    data: z.object({
+        instanceHost: z.string().nullable(),
+        policy: z.object({
+            primaryColor: z.string().optional(),
+            backgroundColor: z.string().optional(),
+            warnColor: z.string().optional(),
+            fontColor: z.string().optional(),
+            primaryColorDark: z.string().optional(),
+            backgroundColorDark: z.string().optional(),
+            warnColorDark: z.string().optional(),
+            fontColorDark: z.string().optional(),
+            hideLoginNameSuffix: z.boolean().optional(),
+            disableWatermark: z.boolean().optional(),
+            themeMode: z.enum([
+                'THEME_MODE_UNSPECIFIED',
+                'THEME_MODE_AUTO',
+                'THEME_MODE_DARK',
+                'THEME_MODE_LIGHT'
+            ]).optional(),
+            fontUrl: z.string().optional(),
+            isDefault: z.boolean().optional()
+        }).nullable(),
+        error: z.string().nullable(),
+        defaults: z.object({
+            primaryColor: z.string().optional(),
+            backgroundColor: z.string().optional(),
+            warnColor: z.string().optional(),
+            fontColor: z.string().optional(),
+            primaryColorDark: z.string().optional(),
+            backgroundColorDark: z.string().optional(),
+            warnColorDark: z.string().optional(),
+            fontColorDark: z.string().optional(),
+            hideLoginNameSuffix: z.boolean().optional(),
+            disableWatermark: z.boolean().optional(),
+            themeMode: z.enum([
+                'THEME_MODE_UNSPECIFIED',
+                'THEME_MODE_AUTO',
+                'THEME_MODE_DARK',
+                'THEME_MODE_LIGHT'
+            ]).optional(),
+            fontUrl: z.string().optional(),
+            isDefault: z.boolean().optional()
+        }),
+        defaultFont: z.object({
+            fileName: z.string(),
+            available: z.boolean()
+        }),
+        lastTask: z.object({
+            id: z.int().gte(-9007199254740991).lte(9007199254740991),
+            function: z.string(),
+            created_by_user_sub: z.string().nullable(),
+            args: z.record(z.string(), z.unknown()),
+            storeLogs: z.boolean(),
+            status: z.enum([
+                'pending',
+                'running',
+                'paused',
+                'failed',
+                'completed'
+            ]),
+            created_at: z.int().gte(-9007199254740991).lte(9007199254740991),
+            finished_at: z.int().gte(-9007199254740991).lte(9007199254740991).nullable(),
+            result: z.record(z.string(), z.unknown()).nullable(),
+            message: z.string().nullable()
+        }).nullable()
+    })
+});
+
+export const zPostInstancesByInstanceIdBrandingApplyDefaultsPath = z.object({
+    instanceId: z.string().min(1).max(64)
+});
+
+/**
+ * Default branding queued successfully
+ */
+export const zPostInstancesByInstanceIdBrandingApplyDefaultsResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(202),
+    message: z.literal('Default branding queued successfully'),
+    data: z.object({
+        taskId: z.number()
+    })
+});
+
+export const zGetDomainsByDomainExistsPath = z.object({
+    domain: z.string().min(1).max(253)
+});
+
+/**
+ * Domain availability retrieved successfully
  */
 export const zGetDomainsByDomainExistsResponse = z.object({
     success: z.literal(true),
     code: z.literal(200),
-    message: z.literal('Domain availability'),
+    message: z.literal('Domain availability retrieved successfully'),
     data: z.object({
         exists: z.boolean()
     })
+});
+
+/**
+ * Statistics retrieved successfully
+ */
+export const zGetAdminStatisticsResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Statistics retrieved successfully'),
+    data: z.object({
+        instances: z.object({
+            total: z.number(),
+            byState: z.array(z.object({
+                state: z.string(),
+                count: z.number()
+            })),
+            createdPerMonth: z.array(z.object({
+                month: z.string(),
+                count: z.number()
+            })),
+            versions: z.array(z.object({
+                version: z.string(),
+                count: z.number()
+            })),
+            newest: z.array(z.object({
+                id: z.string(),
+                name: z.string(),
+                state: z.string(),
+                createdAt: z.string().nullable()
+            }))
+        }).nullable(),
+        domains: z.object({
+            total: z.number(),
+            custom: z.number(),
+            generated: z.number(),
+            instancesWithCustomDomain: z.number()
+        }).nullable(),
+        zitadelError: z.string().nullable(),
+        audit: z.object({
+            total: z.number(),
+            perDay: z.array(z.object({
+                day: z.string(),
+                count: z.number()
+            })),
+            topActions: z.array(z.object({
+                action: z.string(),
+                count: z.number()
+            }))
+        }),
+        sessions: z.object({
+            active: z.number()
+        }),
+        tasks: z.object({
+            pending: z.number(),
+            running: z.number(),
+            failed: z.number(),
+            completed: z.number()
+        }),
+        generatedAt: z.number()
+    })
+});
+
+export const zGetAdminStatisticsUsageQuery = z.object({
+    refresh: z.enum(['true', 'false']).optional()
+});
+
+/**
+ * Usage retrieved successfully
+ */
+export const zGetAdminStatisticsUsageResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Usage retrieved successfully'),
+    data: z.object({
+        fetchedAt: z.number(),
+        cached: z.boolean(),
+        totals: z.object({
+            orgs: z.number(),
+            users: z.number(),
+            unavailable: z.number()
+        }),
+        items: z.array(z.object({
+            instanceId: z.string(),
+            name: z.string(),
+            state: z.string(),
+            orgs: z.number().nullable(),
+            users: z.number().nullable(),
+            error: z.string().nullable()
+        }))
+    })
+});
+
+/**
+ * Host status retrieved successfully
+ */
+export const zGetAdminHostResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Host status retrieved successfully'),
+    data: z.object({
+        hostname: z.string(),
+        os: z.object({
+            name: z.string(),
+            version: z.string().nullable(),
+            id: z.string().nullable(),
+            prettyName: z.string()
+        }),
+        kernel: z.string(),
+        arch: z.string(),
+        uptime: z.number(),
+        bootedAt: z.number(),
+        virtualization: z.object({
+            virtual: z.boolean(),
+            vendor: z.string().nullable(),
+            product: z.string().nullable()
+        }),
+        containerized: z.boolean(),
+        hostRoot: z.string(),
+        cpu: z.object({
+            model: z.string(),
+            cores: z.number(),
+            loadAverage: z.array(z.number()),
+            usage: z.number().nullable()
+        }),
+        memory: z.object({
+            total: z.number(),
+            used: z.number(),
+            available: z.number(),
+            swapTotal: z.number(),
+            swapUsed: z.number()
+        }),
+        disks: z.array(z.object({
+            label: z.string(),
+            path: z.string(),
+            total: z.number(),
+            used: z.number(),
+            free: z.number()
+        })),
+        runtime: z.object({
+            bunVersion: z.string(),
+            pid: z.number(),
+            uptime: z.number(),
+            rss: z.number(),
+            databaseSize: z.number().nullable()
+        }),
+        zitadel: z.object({
+            url: z.string().nullable(),
+            reachable: z.boolean(),
+            statusCode: z.number().nullable(),
+            latencyMs: z.number().nullable(),
+            error: z.string().nullable()
+        })
+    })
+});
+
+export const zGetAdminHostMetricsQuery = z.object({
+    range: z.enum([
+        '1h',
+        '24h',
+        '7d'
+    ]).optional().default('24h')
+});
+
+/**
+ * Host metrics retrieved successfully
+ */
+export const zGetAdminHostMetricsResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Host metrics retrieved successfully'),
+    data: z.object({
+        range: z.enum([
+            '1h',
+            '24h',
+            '7d'
+        ]),
+        sampleInterval: z.number(),
+        points: z.array(z.object({
+            timestamp: z.number(),
+            cpuUsage: z.number().nullable(),
+            load1: z.number(),
+            memoryUsage: z.number(),
+            diskUsage: z.number().nullable()
+        }))
+    })
+});
+
+/**
+ * Update status retrieved successfully
+ */
+export const zGetAdminUpdatesResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Update status retrieved successfully'),
+    data: z.object({
+        os: z.object({
+            supported: z.boolean(),
+            reason: z.string().nullable(),
+            checkedAt: z.number().nullable(),
+            listsUpdatedAt: z.number().nullable(),
+            rebootRequired: z.boolean(),
+            rebootPackages: z.array(z.string()),
+            packages: z.array(z.object({
+                name: z.string(),
+                currentVersion: z.string(),
+                candidateVersion: z.string(),
+                origin: z.string(),
+                security: z.boolean()
+            })),
+            error: z.string().nullable()
+        }),
+        zitadel: z.object({
+            latestVersion: z.string().nullable(),
+            latestPublishedAt: z.string().nullable(),
+            latestUrl: z.string().nullable(),
+            checkedAt: z.number().nullable(),
+            error: z.string().nullable(),
+            instanceVersions: z.array(z.object({
+                version: z.string(),
+                count: z.number()
+            })),
+            updateAvailable: z.boolean().nullable()
+        })
+    })
+});
+
+/**
+ * Update check completed successfully
+ */
+export const zPostAdminUpdatesCheckResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Update check completed successfully'),
+    data: z.object({
+        os: z.object({
+            supported: z.boolean(),
+            reason: z.string().nullable(),
+            checkedAt: z.number().nullable(),
+            listsUpdatedAt: z.number().nullable(),
+            rebootRequired: z.boolean(),
+            rebootPackages: z.array(z.string()),
+            packages: z.array(z.object({
+                name: z.string(),
+                currentVersion: z.string(),
+                candidateVersion: z.string(),
+                origin: z.string(),
+                security: z.boolean()
+            })),
+            error: z.string().nullable()
+        }),
+        zitadel: z.object({
+            latestVersion: z.string().nullable(),
+            latestPublishedAt: z.string().nullable(),
+            latestUrl: z.string().nullable(),
+            checkedAt: z.number().nullable(),
+            error: z.string().nullable(),
+            instanceVersions: z.array(z.object({
+                version: z.string(),
+                count: z.number()
+            })),
+            updateAvailable: z.boolean().nullable()
+        })
+    })
+});
+
+export const zGetAdminAuditQuery = z.object({
+    limit: z.int().gte(1).lte(1000).optional().default(500),
+    offset: z.int().gte(0).lte(9007199254740991).optional().default(0),
+    order: z.enum(['newest', 'oldest']).optional().default('newest'),
+    searchString: z.string().min(3).optional(),
+    action: z.string().min(1).max(64).optional(),
+    instanceId: z.string().min(1).max(64).optional()
+});
+
+/**
+ * Audit log retrieved successfully
+ */
+export const zGetAdminAuditResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Audit log retrieved successfully'),
+    data: z.object({
+        total: z.number(),
+        items: z.array(z.object({
+            id: z.int().gte(-9007199254740991).lte(9007199254740991),
+            actor_sub: z.string(),
+            action: z.string(),
+            target_instance_id: z.string().nullable(),
+            detail: z.string().nullable(),
+            created_at: z.int().gte(-9007199254740991).lte(9007199254740991)
+        }))
+    })
+});
+
+export const zGetAdminTasksQuery = z.object({
+    limit: z.int().gte(1).lte(500).optional().default(200)
+});
+
+/**
+ * Tasks retrieved successfully
+ */
+export const zGetAdminTasksResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Tasks retrieved successfully'),
+    data: z.array(z.object({
+        id: z.int().gte(-9007199254740991).lte(9007199254740991),
+        function: z.string(),
+        created_by_user_sub: z.string().nullable(),
+        args: z.record(z.string(), z.unknown()),
+        storeLogs: z.boolean(),
+        status: z.enum([
+            'pending',
+            'running',
+            'paused',
+            'failed',
+            'completed'
+        ]),
+        created_at: z.int().gte(-9007199254740991).lte(9007199254740991),
+        finished_at: z.int().gte(-9007199254740991).lte(9007199254740991).nullable(),
+        result: z.record(z.string(), z.unknown()).nullable(),
+        message: z.string().nullable()
+    }))
+});
+
+export const zGetAdminTasksByTaskIdPath = z.object({
+    taskId: z.int().gt(0).lte(9007199254740991)
+});
+
+/**
+ * Task retrieved successfully
+ */
+export const zGetAdminTasksByTaskIdResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Task retrieved successfully'),
+    data: z.object({
+        id: z.int().gte(-9007199254740991).lte(9007199254740991),
+        function: z.string(),
+        created_by_user_sub: z.string().nullable(),
+        args: z.record(z.string(), z.unknown()),
+        storeLogs: z.boolean(),
+        status: z.enum([
+            'pending',
+            'running',
+            'paused',
+            'failed',
+            'completed'
+        ]),
+        created_at: z.int().gte(-9007199254740991).lte(9007199254740991),
+        finished_at: z.int().gte(-9007199254740991).lte(9007199254740991).nullable(),
+        result: z.record(z.string(), z.unknown()).nullable(),
+        message: z.string().nullable(),
+        logs: z.string().nullable()
+    })
+});
+
+/**
+ * Sessions retrieved successfully
+ */
+export const zGetAdminSessionsResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Sessions retrieved successfully'),
+    data: z.array(z.object({
+        id: z.string(),
+        user_sub: z.string(),
+        user_email: z.string().nullable(),
+        user_name: z.string().nullable(),
+        user_role: z.enum(['admin', 'member']),
+        login_method: z.enum(['oidc', 'static']),
+        created_at: z.int().gte(-9007199254740991).lte(9007199254740991),
+        expires_at: z.int().gte(-9007199254740991).lte(9007199254740991),
+        current: z.boolean()
+    }))
+});
+
+export const zDeleteAdminSessionsBySessionIdPath = z.object({
+    sessionId: z.string().min(1).max(128)
+});
+
+/**
+ * Session revoked successfully
+ */
+export const zDeleteAdminSessionsBySessionIdResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Session revoked successfully'),
+    data: z.null()
 });

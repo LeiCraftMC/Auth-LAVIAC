@@ -12,15 +12,15 @@
 	"commands": {
 		"api-client": {
 			"description": "Regenerate the typed API client",
-			"prompt": "Regenerate and verify the generated API client for this full-stack Nuxt project.\n\n1. Run `bun run api-client:generate` (boots the Hono API in-process to write the spec, then runs openapi-ts — no dev server needed).\n2. Do not hand-edit generated `*.gen.ts` files under `app/api-client/`.\n3. If generation fails, diagnose whether the Hono backend or the OpenAPI route is the issue.\n4. Summarize the outcome and any follow-up needed."
+			"prompt": "Regenerate and verify the generated API client for this full-stack Nuxt project.\n\n1. Run `bun run api-client:generate` (scripts/api-client-generate.ts boots the API in-process, reads its OpenAPI spec, and patches the generated files — no dev server needed).\n2. Do not hand-edit generated `*.gen.ts` files under `app/api-client/`.\n3. If generation fails, diagnose whether the Hono backend or the OpenAPI route is the issue.\n4. Summarize the outcome and any follow-up needed."
 		},
 		"db": {
 			"description": "Run Drizzle migrations",
-			"prompt": "Run the Drizzle migration flow for this project.\n\n1. Run `bun run db:generate` to generate migrations from `server/lib/db/schema.ts`.\n2. Run `bun run db:migrate` (committed migrations).\n3. Summarize what was generated or applied."
+			"prompt": "Run the Drizzle migration flow for this project.\n\n1. Run `bun run db:generate` to generate migrations from `server/lib/db/schema.ts` into `drizzle/migrations/`.\n2. Run `bun run db:migrate` to apply them (the app also auto-migrates on startup when `LAVIAC_DB_AUTO_MIGRATE` is true — the default).\n3. Summarize what was generated or applied."
 		},
 		"verify": {
 			"description": "Run the repo verification flow",
-			"prompt": "Run the standard verification flow for this Nuxt 4 + Bun project.\n\n1. Run `bunx biome check`.\n2. Run `bun run typecheck` (runs `nuxt typecheck` then `tsc -p ./tsconfig/tsconfig.typecheck.json`).\n3. Run `bun test`.\n4. Summarize any failures or warnings.\n5. If this command was triggered after a code change, fix issues that are clearly caused by that change before summarizing."
+			"prompt": "Run the standard verification flow for this Nuxt 4 + Bun project.\n\n1. Run `bun run typecheck` (runs `nuxt typecheck` then `tsc -p ./tsconfig/tsconfig.typecheck.json`).\n2. Run `bun test`.\n3. Summarize any failures or warnings.\n4. If this command was triggered after a code change, fix issues that are clearly caused by that change before summarizing."
 		},
 		"test": {
 			"description": "Run the test suite",
@@ -28,11 +28,11 @@
 		},
 		"typecheck": {
 			"description": "Run the TypeScript type checker",
-			"prompt": "Run the full typecheck flow for this Nuxt 4 + Bun project.\n\n1. Run `bun run typecheck` which runs `nuxt typecheck` then `tsc -p ./tsconfig/tsconfig.typecheck.json`.\n2. If there are type errors, diagnose and fix them before summarizing.\n3. Report the pass/fail status and what was fixed, if anything.\n\nNote: on Bun versions where `nuxi` crashes, run vue-tsc directly instead:\n`bunx vue-tsc --noEmit -p .nuxt/tsconfig.json`"
+			"prompt": "Run the full typecheck flow for this Nuxt 4 + Bun project.\n\n1. Run `bun run typecheck` which runs `nuxt typecheck` then `tsc -p ./tsconfig/tsconfig.typecheck.json`.\n2. If there are type errors, diagnose and fix them before summarizing.\n3. Report the pass/fail status and what was fixed, if anything."
 		},
 		"dev": {
 			"description": "Start or inspect the dev setup",
-			"prompt": "Work on the local development setup for this project.\n\n1. If needed, install dependencies with `bun install`.\n2. Copy `example.env` to `.env` and fill in the Zitadel + OIDC vars.\n3. Use `bun run dev` for the dev server on port 12191.\n4. If there is a dev-server issue, inspect the Nuxt config, runtime env, and the Hono-in-Nitro wiring (server/routes/api/[...].ts, server/plugins/startup.ts) before making changes.\n5. Summarize what you started, changed, or found."
+			"prompt": "Work on the local development setup for this project.\n\n1. If needed, install dependencies with `bun install`.\n2. Use `bun run dev` for the dev server on port 12191.\n3. If there is a dev-server issue, inspect the Nuxt config, runtime env, and Bun-specific wiring before making changes.\n4. Summarize what you started, changed, or found."
 		}
 	},
 	"fileScan": {
@@ -44,8 +44,7 @@
 			".nitro/**",
 			".data/**",
 			".cache/**",
-			"dist/**",
-			"app/api-client/**"
+			"dist/**"
 		]
 	}
 }

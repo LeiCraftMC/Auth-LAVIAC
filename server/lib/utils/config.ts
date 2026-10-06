@@ -24,9 +24,18 @@ class CS {
 	}
 
 	static boolean() {
-		// `z.coerce.boolean()` would turn the string "false" into true; accept real booleans and
-		// "true"/"false"/"1"/"0"/"yes"/"no"/"on"/"off" strings instead.
-		return new CS.ConfigItem(z.union([z.boolean(), z.stringbool()]));
+		return new CS.ConfigItem(
+			z.union(
+				[
+					z.boolean(),
+					z
+						.string()
+						.refine((val) => val === "true" || val === "false")
+						.transform((val) => val === "true"),
+				],
+				{ error: "Expected a boolean value ('true' or 'false')" },
+			),
+		);
 	}
 
 	static enum<const T extends readonly string[]>(values: T) {
@@ -109,7 +118,7 @@ export type ENVConfigLike = {
 export type ParsedConfig = ConfigLike<typeof ConfigHandler.schema.schema>;
 
 export class ConfigHandler {
-	// Public so ENVConfigLike / ParsedConfig can derive from it without @ts-expect-error.
+	// Public so ENVConfigLike / ParsedConfig can derive from it without @ts-ignore.
 	// Treat it as read-only.
 	static schema = new ConfigSchema({
 		LOG_LEVEL: CS.enum(["debug", "info", "warn", "error", "critical"]).default("info"),
@@ -120,6 +129,7 @@ export class ConfigHandler {
 		DB_AUTO_MIGRATE: CS.boolean().default(true),
 		DB_MIGRATION_DIR: CS.string().default("./drizzle/migrations"),
 
+		LOG_DIR: CS.string().default("./data/logs"),
 		CONFIG_BASE_DIR: CS.string().default("./config"),
 
 		APP_URL: CS.string(),
@@ -131,6 +141,9 @@ export class ConfigHandler {
 		ZITADEL_SYSTEM_USER_ID: CS.string().optional(),
 		ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH: CS.string().optional(),
 		ZITADEL_SYSTEM_USER_PRIVATE_KEY: CS.string().optional(),
+		// Apply the LAVIAC default branding (label policy + font) to every newly created instance.
+		// Needs the system user to hold IAM_OWNER via a `System` membership (see example.env).
+		ZITADEL_APPLY_DEFAULT_BRANDING: CS.boolean().default(true),
 
 		OIDC_CLIENT_ID: CS.string().optional(),
 		OIDC_CLIENT_SECRET: CS.string().optional(),
@@ -144,6 +157,10 @@ export class ConfigHandler {
 		// always reachable, even without Zitadel OIDC.
 		STATIC_AUTH_USERNAME: CS.string().default("admin"),
 		STATIC_AUTH_PASSWORD_HASH: CS.string(),
+
+		// Where the host VM's root filesystem is visible — `/` on bare metal, the read-only bind
+		// mount (e.g. `/host`) in Docker. Drives the host stats and the OS update check.
+		HOST_ROOT: CS.string().default("/"),
 	});
 
 	private static config: ParsedConfig | null = null;

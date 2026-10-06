@@ -113,3 +113,44 @@ export type ZitadelInstanceSortingColumn =
 	| "FIELD_NAME_ID"
 	| "FIELD_NAME_NAME"
 	| "FIELD_NAME_CREATION_DATE";
+
+// --- Admin API (instance-scoped, selected via the `x-zitadel-instance-host` header) -------
+
+export type ZitadelThemeMode =
+	| "THEME_MODE_UNSPECIFIED"
+	| "THEME_MODE_AUTO"
+	| "THEME_MODE_DARK"
+	| "THEME_MODE_LIGHT";
+
+/** Body of `PUT /admin/v1/policies/label` (the instance's default branding, preview state). */
+export interface ZitadelUpdateLabelPolicyRequest {
+	primaryColor?: string;
+	hideLoginNameSuffix?: boolean;
+	warnColor?: string;
+	backgroundColor?: string;
+	fontColor?: string;
+	primaryColorDark?: string;
+	backgroundColorDark?: string;
+	warnColorDark?: string;
+	fontColorDark?: string;
+	disableWatermark?: boolean;
+	themeMode?: ZitadelThemeMode;
+}
+
+export interface ZitadelLabelPolicy extends ZitadelUpdateLabelPolicyRequest {
+	details?: ZitadelObjectDetails;
+	isDefault?: boolean;
+	logoUrl?: string;
+	iconUrl?: string;
+	logoUrlDark?: string;
+	iconUrlDark?: string;
+	fontUrl?: string;
+}
+
+export interface ZitadelGetLabelPolicyResponse {
+	policy?: ZitadelLabelPolicy;
+}
+
+export interface ZitadelListResponse {
+	details?: ZitadelListDetails;
+}
