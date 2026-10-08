@@ -5,6 +5,9 @@ export const DOCS_TAGS = {
 	INSTANCES_DOMAINS: "Instances / Domains",
 	INSTANCES_LIMITS: "Instances / Limits",
 	INSTANCES_BRANDING: "Instances / Branding",
+	INSTANCES_TEMPLATE: "Instances / Template",
+
+	INSTANCE_TEMPLATES: "Instance Templates",
 
 	DOMAINS: "Domains",
 

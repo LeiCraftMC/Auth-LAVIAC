@@ -6,6 +6,7 @@ import { authMiddlewareV1 } from "./middleware/auth";
 import { router as adminRouter } from "./routes/admin";
 import { router as authRouter } from "./routes/auth";
 import { router as domainsRouter } from "./routes/domains";
+import { router as instanceTemplatesRouter } from "./routes/instance-templates";
 import { router as instancesRouter } from "./routes/instances";
 
 const openAPIConfig: Partial<GenerateSpecOptions> = {
@@ -60,6 +61,8 @@ const openAPIConfig: Partial<GenerateSpecOptions> = {
 					"Instances / Domains",
 					"Instances / Limits",
 					"Instances / Branding",
+					"Instances / Template",
+					"Instance Templates",
 					"Domains",
 				],
 			},
@@ -110,6 +113,18 @@ const openAPIConfig: Partial<GenerateSpecOptions> = {
 				summary: "Branding",
 				parent: "Instances",
 				description: "Per-instance label policy and the LAVIAC default branding",
+			},
+			{
+				name: "Instances / Template",
+				// @ts-ignore
+				"x-displayName": "Template",
+				summary: "Template",
+				parent: "Instances",
+				description: "The template an instance was created with and its provisioning",
+			},
+			{
+				name: "Instance Templates",
+				description: "The instance templates and the settings each one applies",
 			},
 			{
 				name: "Domains",
@@ -174,6 +189,7 @@ router.use(authMiddlewareV1);
 
 router.route("/", authRouter);
 router.route("/", instancesRouter);
+router.route("/", instanceTemplatesRouter);
 router.route("/", domainsRouter);
 router.route("/", adminRouter);
 

@@ -207,6 +207,7 @@ export type GetInstancesResponses = {
                 primary?: boolean;
                 generated?: boolean;
             }>;
+            template: 'private' | 'public-b2b-b2c' | 'public-b2c' | 'public-b2b' | 'minimal' | null;
         }>;
     };
 };
@@ -216,7 +217,12 @@ export type GetInstancesResponse = GetInstancesResponses[keyof GetInstancesRespo
 export type PostInstancesData = {
     body: {
         instanceName: string;
-        firstOrgName?: string;
+        template: 'private' | 'public-b2b-b2c' | 'public-b2c' | 'public-b2b' | 'minimal';
+        templateOptions?: {
+            homeOrgName?: string;
+            homeOrgDomain?: string;
+            allowOrgRegistration?: boolean;
+        };
         customDomain?: string;
         defaultLanguage?: string;
         human?: {
@@ -285,6 +291,7 @@ export type PostInstancesResponses = {
             instanceId: string;
             pat?: string;
             machineKey?: string;
+            provisioningTaskId: number | null;
             brandingTaskId: number | null;
         };
     };
@@ -868,6 +875,198 @@ export type PostInstancesByInstanceIdBrandingApplyDefaultsResponses = {
 };
 
 export type PostInstancesByInstanceIdBrandingApplyDefaultsResponse = PostInstancesByInstanceIdBrandingApplyDefaultsResponses[keyof PostInstancesByInstanceIdBrandingApplyDefaultsResponses];
+
+export type GetInstancesByInstanceIdTemplateData = {
+    body?: never;
+    path: {
+        instanceId: string;
+    };
+    query?: never;
+    url: '/instances/{instanceId}/template';
+};
+
+export type GetInstancesByInstanceIdTemplateErrors = {
+    /**
+     * Bad Request: Syntax or validation error in request
+     */
+    400: {
+        success: false;
+        code: 400;
+        message: 'Bad Request: Syntax or validation error in request';
+    };
+    /**
+     * Instance not found
+     */
+    404: {
+        success: false;
+        code: 404;
+        message: 'Instance not found';
+    };
+};
+
+export type GetInstancesByInstanceIdTemplateError = GetInstancesByInstanceIdTemplateErrors[keyof GetInstancesByInstanceIdTemplateErrors];
+
+export type GetInstancesByInstanceIdTemplateResponses = {
+    /**
+     * Template retrieved successfully
+     */
+    200: {
+        success: true;
+        code: 200;
+        message: 'Template retrieved successfully';
+        data: {
+            setup: {
+                template: {
+                    id: 'private' | 'public-b2b-b2c' | 'public-b2c' | 'public-b2b' | 'minimal';
+                    name: string;
+                    summary: string;
+                    icon: string;
+                    homeOrg: {
+                        kind: 'company' | 'public' | 'catch-all';
+                        label: string;
+                        description: string;
+                        placeholder: string;
+                    } | null;
+                    asksOrgRegistration: boolean;
+                };
+                options: {
+                    homeOrgName?: string;
+                    homeOrgDomain?: string;
+                    allowOrgRegistration?: boolean;
+                };
+                systemOrgId: string | null;
+                homeOrgId: string | null;
+                createdAt: number;
+                createdBySub: string | null;
+                sections: Array<{
+                    id: string;
+                    title: string;
+                    description: string;
+                    rows: Array<{
+                        label: string;
+                        value: string;
+                        source: 'baseline' | 'template' | 'option';
+                    }>;
+                }>;
+            } | null;
+            defaultOrg: {
+                id: string;
+                name: string | null;
+            } | null;
+            error: string | null;
+            lastTask: {
+                id: number;
+                function: string;
+                created_by_user_sub: string | null;
+                args: {
+                    [key: string]: unknown;
+                };
+                storeLogs: boolean;
+                status: 'pending' | 'running' | 'paused' | 'failed' | 'completed';
+                created_at: number;
+                finished_at: number | null;
+                result: {
+                    [key: string]: unknown;
+                } | null;
+                message: string | null;
+            } | null;
+        };
+    };
+};
+
+export type GetInstancesByInstanceIdTemplateResponse = GetInstancesByInstanceIdTemplateResponses[keyof GetInstancesByInstanceIdTemplateResponses];
+
+export type PostInstancesByInstanceIdTemplateApplyData = {
+    body?: never;
+    path: {
+        instanceId: string;
+    };
+    query?: never;
+    url: '/instances/{instanceId}/template/_apply';
+};
+
+export type PostInstancesByInstanceIdTemplateApplyErrors = {
+    /**
+     * Bad Request: Syntax or validation error in request
+     */
+    400: {
+        success: false;
+        code: 400;
+        message: 'Bad Request: Syntax or validation error in request';
+    };
+    /**
+     * Instance not found, or it was created before templates
+     */
+    404: {
+        success: false;
+        code: 404;
+        message: 'Instance not found, or it was created before templates';
+    };
+};
+
+export type PostInstancesByInstanceIdTemplateApplyError = PostInstancesByInstanceIdTemplateApplyErrors[keyof PostInstancesByInstanceIdTemplateApplyErrors];
+
+export type PostInstancesByInstanceIdTemplateApplyResponses = {
+    /**
+     * Template queued successfully
+     */
+    202: {
+        success: true;
+        code: 202;
+        message: 'Template queued successfully';
+        data: {
+            taskId: number;
+        };
+    };
+};
+
+export type PostInstancesByInstanceIdTemplateApplyResponse = PostInstancesByInstanceIdTemplateApplyResponses[keyof PostInstancesByInstanceIdTemplateApplyResponses];
+
+export type GetInstanceTemplatesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/instance-templates';
+};
+
+export type GetInstanceTemplatesResponses = {
+    /**
+     * Instance templates retrieved successfully
+     */
+    200: {
+        success: true;
+        code: 200;
+        message: 'Instance templates retrieved successfully';
+        data: {
+            systemOrgName: string;
+            templates: Array<{
+                id: 'private' | 'public-b2b-b2c' | 'public-b2c' | 'public-b2b' | 'minimal';
+                name: string;
+                summary: string;
+                icon: string;
+                homeOrg: {
+                    kind: 'company' | 'public' | 'catch-all';
+                    label: string;
+                    description: string;
+                    placeholder: string;
+                } | null;
+                asksOrgRegistration: boolean;
+                sections: Array<{
+                    id: string;
+                    title: string;
+                    description: string;
+                    rows: Array<{
+                        label: string;
+                        value: string;
+                        source: 'baseline' | 'template' | 'option';
+                    }>;
+                }>;
+            }>;
+        };
+    };
+};
+
+export type GetInstanceTemplatesResponse = GetInstanceTemplatesResponses[keyof GetInstanceTemplatesResponses];
 
 export type GetDomainsByDomainExistsData = {
     body?: never;

@@ -5,6 +5,7 @@ import { dirname } from "path";
 import { DB } from "../db";
 import { Logger } from "../utils/logger";
 import { ApplyDefaultBrandingTask } from "./applyDefaultBranding";
+import { ProvisionInstanceTask } from "./provisionInstance";
 import { TaskUtils } from "./utils";
 
 type AdditionalTaskMeta = {
@@ -245,7 +246,9 @@ class PersistentLogger implements TaskHandler.PersistentTaskLoggerLike {
 	}
 }
 
-const Registry = new TaskHandler.TaskFNRegistry().register(ApplyDefaultBrandingTask);
+const Registry = new TaskHandler.TaskFNRegistry()
+	.register(ApplyDefaultBrandingTask)
+	.register(ProvisionInstanceTask);
 
 const taskStorage = new TaskStorage();
 

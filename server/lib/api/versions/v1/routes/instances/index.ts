@@ -1,10 +1,13 @@
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator as zValidator } from "hono-openapi";
+import { DB } from "../../../../../db";
 import { TaskScheduler } from "../../../../../tasks";
 import { Audit } from "../../../../../utils/audit";
 import { ConfigHandler } from "../../../../../utils/config";
 import { Logger } from "../../../../../utils/logger";
 import { ZitadelClient } from "../../../../../zitadel/client";
+import { InstanceTemplates } from "../../../../../zitadel/templates";
 import { APIResponse } from "../../../../utils/api-res";
 import { AuthHandler } from "../../../../utils/authHandler";
 import { APIResponseSpec, APIRouteSpec } from "../../../../utils/specHelpers";
@@ -42,16 +45,32 @@ router.get(
 	}),
 
 	async (c) => {
+		let instances: Awaited<ReturnType<typeof ZitadelClient.listInstances>>;
 		try {
-			const instances = await ZitadelClient.listInstances();
-			return APIResponse.success(
-				c,
-				"Instances retrieved successfully",
-				instances.map(ZitadelAPIUtils.mapInstance),
-			);
+			instances = await ZitadelClient.listInstances();
 		} catch (err) {
 			return ZitadelAPIUtils.handleError(c, err);
 		}
+
+		const templates = new Map(
+			DB.instance()
+				.select({
+					instanceId: DB.Tables.instanceSetups.instance_id,
+					template: DB.Tables.instanceSetups.template,
+				})
+				.from(DB.Tables.instanceSetups)
+				.all()
+				.map((setup) => [setup.instanceId, setup.template]),
+		);
+
+		return APIResponse.success(
+			c,
+			"Instances retrieved successfully",
+			instances.map((instance) => ({
+				...ZitadelAPIUtils.mapInstance(instance),
+				template: templates.get(instance.id) ?? null,
+			})) satisfies InstancesModel.GetAll.Response,
+		);
 	},
 );
 
@@ -61,7 +80,7 @@ router.post(
 	APIRouteSpec.authenticated({
 		summary: "Create a virtual instance",
 		description:
-			"Create a new Zitadel instance with its first org and an owner (human or machine). Unless disabled, the LAVIAC default branding is applied afterwards by a background task.",
+			"Create a new Zitadel instance from a template. The first org is always the SYSTEM org, which holds the ZITADEL project and the owner (human or machine) as the initial admin. A background task then applies the template: the security baseline, the instance defaults and the home org, which becomes the default org. Unless disabled, a second task applies the LAVIAC default branding.",
 		tags: [DOCS_TAGS.INSTANCES],
 
 		responses: APIResponseSpec.describeWithWrongInputs(
@@ -74,16 +93,48 @@ router.post(
 
 	async (c) => {
 		const authContext = AuthHandler.AuthContext.getAsSession(c);
-		const body = c.req.valid("json");
+		const { template, templateOptions, ...body } = c.req.valid("json");
 
 		let result: Awaited<ReturnType<typeof ZitadelClient.createInstance>>;
 		try {
-			result = await ZitadelClient.createInstance(body);
+			result = await ZitadelClient.createInstance({
+				...body,
+				firstOrgName: InstanceTemplates.SYSTEM_ORG_NAME,
+			});
 		} catch (err) {
 			return ZitadelAPIUtils.handleError(c, err);
 		}
 
-		await Audit.log(authContext.user_sub, "instance.create", result.instanceId, body.instanceName);
+		await Audit.log(
+			authContext.user_sub,
+			"instance.create",
+			result.instanceId,
+			`${body.instanceName} (template ${template})`,
+		);
+
+		// The instance exists from here on: failures below are logged, not returned — the
+		// template can be re-applied from the instance's Template page.
+		let provisioningTaskId: number | null = null;
+		try {
+			DB.instance()
+				.insert(DB.Tables.instanceSetups)
+				.values({
+					instance_id: result.instanceId,
+					template,
+					options: templateOptions,
+					created_by_user_sub: authContext.user_sub,
+				})
+				.run();
+
+			provisioningTaskId = await TaskScheduler.enqueueTask(
+				"provisionInstance",
+				{ instanceId: result.instanceId, actorSub: authContext.user_sub },
+				{ created_by_user_sub: authContext.user_sub },
+				{ storeLogs: true },
+			);
+		} catch (err) {
+			Logger.error("Failed to queue the provisioning task:", err);
+		}
 
 		let brandingTaskId: number | null = null;
 		if (ConfigHandler.getConfig()?.ZITADEL_APPLY_DEFAULT_BRANDING === true) {
@@ -104,6 +155,7 @@ router.post(
 			instanceId: result.instanceId,
 			pat: result.pat,
 			machineKey: result.machineKey,
+			provisioningTaskId,
 			brandingTaskId,
 		} satisfies InstancesModel.Create.Response);
 	},
@@ -203,16 +255,21 @@ router.delete(
 
 		try {
 			await ZitadelClient.deleteInstance(instanceId);
-			await Audit.log(authContext.user_sub, "instance.delete", instanceId);
-			return APIResponse.successNoData(c, "Instance deleted successfully");
 		} catch (err) {
 			return ZitadelAPIUtils.handleError(c, err);
 		}
+
+		await DB.instance()
+			.delete(DB.Tables.instanceSetups)
+			.where(eq(DB.Tables.instanceSetups.instance_id, instanceId));
+		await Audit.log(authContext.user_sub, "instance.delete", instanceId);
+		return APIResponse.successNoData(c, "Instance deleted successfully");
 	},
 );
 
-// Sub-routers: their basePath ("/domains", "/limits", "/branding") completes the mount below
-// the :instanceId param; they inherit the admin guard above.
+// Sub-routers: their basePath ("/domains", "/limits", "/branding", "/template") completes the
+// mount below the :instanceId param; they inherit the admin guard above.
 router.route("/:instanceId", (await import("./domains")).router);
 router.route("/:instanceId", (await import("./limits")).router);
 router.route("/:instanceId", (await import("./branding")).router);
+router.route("/:instanceId", (await import("./template")).router);

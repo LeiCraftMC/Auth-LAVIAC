@@ -17,6 +17,11 @@ const mainItems: NavigationMenuItem[] = [
 		icon: "i-lucide-server",
 		to: "/dashboard/instances",
 	},
+	{
+		label: "Templates",
+		icon: "i-lucide-layout-template",
+		to: "/dashboard/templates",
+	},
 ];
 
 const adminItems: NavigationMenuItem[] = [

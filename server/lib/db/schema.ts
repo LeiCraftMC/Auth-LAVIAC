@@ -2,6 +2,7 @@ import type { TaskHandler } from "@cleverjs/utils";
 import { sql } from "drizzle-orm";
 import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { UserAccountSettings } from "../api/utils/shared-models/accountData";
+import { InstanceTemplates } from "../zitadel/templates";
 import { SQLUtils } from "./utils";
 
 /** @deprecated Use DB.Tables.sessions */
@@ -78,6 +79,21 @@ export const hostMetrics = sqliteTable("host_metrics", {
 	swap_used: integer().notNull(),
 	disk_total: integer(),
 	disk_used: integer(),
+	created_at: SQLUtils.getCreatedAtColumn(),
+});
+
+/**
+ * The template a virtual instance was created with (server/lib/zitadel/templates.ts) and the orgs
+ * the `provisionInstance` task found or created. Instances created before templates have no row.
+ * @deprecated Use DB.Tables.instanceSetups to access this table.
+ */
+export const instanceSetups = sqliteTable("instance_setups", {
+	instance_id: text().primaryKey(),
+	template: text({ enum: InstanceTemplates.IDS }).notNull(),
+	options: text({ mode: "json" }).$type<InstanceTemplates.Options>().notNull(),
+	system_org_id: text(),
+	home_org_id: text(),
+	created_by_user_sub: text(),
 	created_at: SQLUtils.getCreatedAtColumn(),
 });
 

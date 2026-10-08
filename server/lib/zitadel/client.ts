@@ -5,9 +5,10 @@
  * with the system-user JWT (see ./jwt.ts). This covers the cross-instance control the
  * regular Zitadel admin console does NOT expose: instance CRUD, custom domains, limits.
  *
- * The instance-scoped calls (Admin API, v2 user API, asset upload) reuse the same JWT and pick
- * the target instance with the `x-zitadel-instance-host` header (Zitadel's default
- * `InstanceHostHeaders`). They need the system user to hold `IAM_OWNER` through a `System`
+ * The instance-scoped calls (Admin and Management API, v2 user and organization API, asset
+ * upload) reuse the same JWT and pick the target instance with the `x-zitadel-instance-host`
+ * header (Zitadel's default `InstanceHostHeaders`); Management API calls pick the org with
+ * `x-zitadel-orgid`. They need the system user to hold `IAM_OWNER` through a `System`
  * membership in `SystemAPIUsers`; without it Zitadel answers 403.
  *
  * Reference: https://zitadel.com/docs/reference/api/system
@@ -16,11 +17,15 @@ import { ConfigHandler } from "../utils/config";
 import { Logger } from "../utils/logger";
 import { ZitadelSystemJwt } from "./jwt";
 import type {
+	ZitadelAddOrganizationResponse,
 	ZitadelCreateInstanceRequest,
 	ZitadelCreateInstanceResponse,
+	ZitadelCustomLoginPolicy,
 	ZitadelDeleteInstanceResponse,
 	ZitadelDomain,
+	ZitadelDomainPolicy,
 	ZitadelExistsDomainResponse,
+	ZitadelGetDefaultOrgResponse,
 	ZitadelGetInstanceResponse,
 	ZitadelGetLabelPolicyResponse,
 	ZitadelInstance,
@@ -28,7 +33,15 @@ import type {
 	ZitadelLabelPolicy,
 	ZitadelListDomainsResponse,
 	ZitadelListInstancesResponse,
+	ZitadelListOrganizationsResponse,
 	ZitadelListResponse,
+	ZitadelLockoutPolicy,
+	ZitadelLoginPolicy,
+	ZitadelOIDCSettings,
+	ZitadelOrganization,
+	ZitadelPasswordComplexityPolicy,
+	ZitadelRestrictions,
+	ZitadelSecurityPolicy,
 	ZitadelSetLimitsRequest,
 	ZitadelUpdateInstanceResponse,
 	ZitadelUpdateLabelPolicyRequest,
@@ -57,6 +70,8 @@ interface RequestOptions {
 	formData?: FormData;
 	/** Target instance for the instance-scoped APIs (`x-zitadel-instance-host`). */
 	instanceHost?: string;
+	/** Target org for the Management API (`x-zitadel-orgid`). */
+	orgId?: string;
 }
 
 export interface ZitadelHealth {
@@ -100,6 +115,9 @@ export class ZitadelClient {
 		}
 		if (options.instanceHost) {
 			headers["x-zitadel-instance-host"] = options.instanceHost;
+		}
+		if (options.orgId) {
+			headers["x-zitadel-orgid"] = options.orgId;
 		}
 
 		Logger.debug(
@@ -278,6 +296,198 @@ export class ZitadelClient {
 			instanceHost,
 			body: {},
 		});
+	}
+
+	// --- Instance settings (Admin API, instance-scoped) ------------------------
+
+	/** The instance's default login policy, inherited by every org without its own. */
+	static async updateDefaultLoginPolicy(
+		instanceHost: string,
+		body: ZitadelLoginPolicy,
+	): Promise<void> {
+		await ZitadelClient.request("PUT", "/admin/v1/policies/login", { instanceHost, body });
+	}
+
+	/**
+	 * The instance's default domain policy. Changing `userLoginMustBeDomain` rewrites the
+	 * usernames of every org without its own domain policy.
+	 */
+	static async updateDefaultDomainPolicy(
+		instanceHost: string,
+		body: ZitadelDomainPolicy,
+	): Promise<void> {
+		await ZitadelClient.request("PUT", "/admin/v1/policies/domain", { instanceHost, body });
+	}
+
+	static async updateDefaultPasswordComplexityPolicy(
+		instanceHost: string,
+		body: ZitadelPasswordComplexityPolicy,
+	): Promise<void> {
+		await ZitadelClient.request("PUT", "/admin/v1/policies/password/complexity", {
+			instanceHost,
+			body,
+		});
+	}
+
+	static async updateDefaultLockoutPolicy(
+		instanceHost: string,
+		body: ZitadelLockoutPolicy,
+	): Promise<void> {
+		await ZitadelClient.request("PUT", "/admin/v1/policies/password/lockout", {
+			instanceHost,
+			body,
+		});
+	}
+
+	static async setSecurityPolicy(instanceHost: string, body: ZitadelSecurityPolicy): Promise<void> {
+		await ZitadelClient.request("PUT", "/admin/v1/policies/security", { instanceHost, body });
+	}
+
+	static async updateOIDCSettings(instanceHost: string, body: ZitadelOIDCSettings): Promise<void> {
+		await ZitadelClient.request("PUT", "/admin/v1/settings/oidc", { instanceHost, body });
+	}
+
+	static async setRestrictions(instanceHost: string, body: ZitadelRestrictions): Promise<void> {
+		await ZitadelClient.request("PUT", "/admin/v1/restrictions", { instanceHost, body });
+	}
+
+	/** The org the login uses without org context; self-registered users land there. */
+	static async getDefaultOrg(instanceHost: string): Promise<{ id: string; name?: string } | null> {
+		const res = await ZitadelClient.request<ZitadelGetDefaultOrgResponse>(
+			"GET",
+			"/admin/v1/orgs/default",
+			{ instanceHost },
+		);
+		return res.org ?? null;
+	}
+
+	static async setDefaultOrg(instanceHost: string, orgId: string): Promise<void> {
+		await ZitadelClient.request("PUT", `/admin/v1/orgs/default/${encodeURIComponent(orgId)}`, {
+			instanceHost,
+			body: {},
+		});
+	}
+
+	// --- Organizations (instance-scoped) ---------------------------------------
+
+	/** Org names are unique within an instance. */
+	static async findOrgByName(
+		instanceHost: string,
+		name: string,
+	): Promise<ZitadelOrganization | null> {
+		const res = await ZitadelClient.request<ZitadelListOrganizationsResponse>(
+			"POST",
+			"/v2/organizations/_search",
+			{
+				instanceHost,
+				body: { queries: [{ nameQuery: { name, method: "TEXT_QUERY_METHOD_EQUALS" } }] },
+			},
+		);
+		return res.result?.[0] ?? null;
+	}
+
+	/** Create an org without admins (the instance's IAM owners manage it). Returns its id. */
+	static async addOrg(instanceHost: string, name: string): Promise<string> {
+		const res = await ZitadelClient.request<ZitadelAddOrganizationResponse>(
+			"POST",
+			"/v2/organizations",
+			{ instanceHost, body: { name } },
+		);
+		return res.organizationId;
+	}
+
+	/** Give an org its own login policy (409 when it has one already). */
+	static async addOrgLoginPolicy(
+		instanceHost: string,
+		orgId: string,
+		body: ZitadelCustomLoginPolicy,
+	): Promise<void> {
+		await ZitadelClient.request("POST", "/management/v1/policies/login", {
+			instanceHost,
+			orgId,
+			body,
+		});
+	}
+
+	/** Update an org's own login policy; its factors are kept. */
+	static async updateOrgLoginPolicy(
+		instanceHost: string,
+		orgId: string,
+		body: ZitadelLoginPolicy,
+	): Promise<void> {
+		await ZitadelClient.request("PUT", "/management/v1/policies/login", {
+			instanceHost,
+			orgId,
+			body,
+		});
+	}
+
+	/** Give an org its own domain policy (409 when it has one already). */
+	static async addOrgDomainPolicy(
+		instanceHost: string,
+		orgId: string,
+		body: ZitadelDomainPolicy,
+	): Promise<void> {
+		await ZitadelClient.request(
+			"POST",
+			`/admin/v1/orgs/${encodeURIComponent(orgId)}/policies/domain`,
+			{ instanceHost, body },
+		);
+	}
+
+	static async updateOrgDomainPolicy(
+		instanceHost: string,
+		orgId: string,
+		body: ZitadelDomainPolicy,
+	): Promise<void> {
+		await ZitadelClient.request(
+			"PUT",
+			`/admin/v1/orgs/${encodeURIComponent(orgId)}/policies/domain`,
+			{ instanceHost, body },
+		);
+	}
+
+	/** Drop an org's own domain policy so it inherits the instance default (404 without one). */
+	static async resetOrgDomainPolicy(instanceHost: string, orgId: string): Promise<void> {
+		await ZitadelClient.request(
+			"DELETE",
+			`/admin/v1/orgs/${encodeURIComponent(orgId)}/policies/domain`,
+			{ instanceHost },
+		);
+	}
+
+	static async setOrgMetadata(
+		instanceHost: string,
+		orgId: string,
+		key: string,
+		value: string,
+	): Promise<void> {
+		await ZitadelClient.request("POST", `/management/v1/metadata/${encodeURIComponent(key)}`, {
+			instanceHost,
+			orgId,
+			body: { value: Buffer.from(value).toString("base64") },
+		});
+	}
+
+	/** Add a domain to an org (409 when it has it already); verified at once if the org's domain policy skips validation. */
+	static async addOrgDomain(instanceHost: string, orgId: string, domain: string): Promise<void> {
+		await ZitadelClient.request("POST", "/management/v1/orgs/me/domains", {
+			instanceHost,
+			orgId,
+			body: { domain },
+		});
+	}
+
+	static async setPrimaryOrgDomain(
+		instanceHost: string,
+		orgId: string,
+		domain: string,
+	): Promise<void> {
+		await ZitadelClient.request(
+			"POST",
+			`/management/v1/orgs/me/domains/${encodeURIComponent(domain)}/_set_primary`,
+			{ instanceHost, orgId, body: {} },
+		);
 	}
 
 	// --- Usage counts (instance-scoped) ----------------------------------------

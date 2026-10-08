@@ -87,6 +87,12 @@ function getRoutesConfig(): UseSubrouterPathDynamics.RoutesConfig {
 			icon: "i-lucide-gauge",
 			getDynamicValues: () => page("Limits", (name) => `Limits of ${name}`),
 		},
+		[`${base}/template`]: {
+			isNavLink: true,
+			label: "Template",
+			icon: "i-lucide-layout-template",
+			getDynamicValues: () => page("Template", (name) => `Template of ${name}`),
+		},
 		[`${base}/branding`]: {
 			isNavLink: true,
 			label: "Branding",

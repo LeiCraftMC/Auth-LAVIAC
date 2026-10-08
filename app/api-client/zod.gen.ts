@@ -85,13 +85,31 @@ export const zGetInstancesResponse = z.object({
             domain: z.string(),
             primary: z.boolean().optional(),
             generated: z.boolean().optional()
-        })).optional()
+        })).optional(),
+        template: z.enum([
+            'private',
+            'public-b2b-b2c',
+            'public-b2c',
+            'public-b2b',
+            'minimal'
+        ]).nullable()
     }))
 });
 
 export const zPostInstancesBody = z.object({
     instanceName: z.string().min(1),
-    firstOrgName: z.string().optional(),
+    template: z.enum([
+        'private',
+        'public-b2b-b2c',
+        'public-b2c',
+        'public-b2b',
+        'minimal'
+    ]),
+    templateOptions: z.object({
+        homeOrgName: z.string().min(1).max(200).optional(),
+        homeOrgDomain: z.string().max(200).regex(/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/).optional(),
+        allowOrgRegistration: z.boolean().optional()
+    }).optional().default({}),
     customDomain: z.string().optional(),
     defaultLanguage: z.string().optional(),
     human: z.object({
@@ -134,6 +152,7 @@ export const zPostInstancesResponse = z.object({
         instanceId: z.string(),
         pat: z.string().optional(),
         machineKey: z.string().optional(),
+        provisioningTaskId: z.number().nullable(),
         brandingTaskId: z.number().nullable()
     })
 });
@@ -402,6 +421,157 @@ export const zPostInstancesByInstanceIdBrandingApplyDefaultsResponse = z.object(
     message: z.literal('Default branding queued successfully'),
     data: z.object({
         taskId: z.number()
+    })
+});
+
+export const zGetInstancesByInstanceIdTemplatePath = z.object({
+    instanceId: z.string().min(1).max(64)
+});
+
+/**
+ * Template retrieved successfully
+ */
+export const zGetInstancesByInstanceIdTemplateResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Template retrieved successfully'),
+    data: z.object({
+        setup: z.object({
+            template: z.object({
+                id: z.enum([
+                    'private',
+                    'public-b2b-b2c',
+                    'public-b2c',
+                    'public-b2b',
+                    'minimal'
+                ]),
+                name: z.string(),
+                summary: z.string(),
+                icon: z.string(),
+                homeOrg: z.object({
+                    kind: z.enum([
+                        'company',
+                        'public',
+                        'catch-all'
+                    ]),
+                    label: z.string(),
+                    description: z.string(),
+                    placeholder: z.string()
+                }).nullable(),
+                asksOrgRegistration: z.boolean()
+            }),
+            options: z.object({
+                homeOrgName: z.string().min(1).max(200).optional(),
+                homeOrgDomain: z.string().max(200).regex(/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/).optional(),
+                allowOrgRegistration: z.boolean().optional()
+            }),
+            systemOrgId: z.string().nullable(),
+            homeOrgId: z.string().nullable(),
+            createdAt: z.number(),
+            createdBySub: z.string().nullable(),
+            sections: z.array(z.object({
+                id: z.string(),
+                title: z.string(),
+                description: z.string(),
+                rows: z.array(z.object({
+                    label: z.string(),
+                    value: z.string(),
+                    source: z.enum([
+                        'baseline',
+                        'template',
+                        'option'
+                    ])
+                }))
+            }))
+        }).nullable(),
+        defaultOrg: z.object({
+            id: z.string(),
+            name: z.string().nullable()
+        }).nullable(),
+        error: z.string().nullable(),
+        lastTask: z.object({
+            id: z.int().gte(-9007199254740991).lte(9007199254740991),
+            function: z.string(),
+            created_by_user_sub: z.string().nullable(),
+            args: z.record(z.string(), z.unknown()),
+            storeLogs: z.boolean(),
+            status: z.enum([
+                'pending',
+                'running',
+                'paused',
+                'failed',
+                'completed'
+            ]),
+            created_at: z.int().gte(-9007199254740991).lte(9007199254740991),
+            finished_at: z.int().gte(-9007199254740991).lte(9007199254740991).nullable(),
+            result: z.record(z.string(), z.unknown()).nullable(),
+            message: z.string().nullable()
+        }).nullable()
+    })
+});
+
+export const zPostInstancesByInstanceIdTemplateApplyPath = z.object({
+    instanceId: z.string().min(1).max(64)
+});
+
+/**
+ * Template queued successfully
+ */
+export const zPostInstancesByInstanceIdTemplateApplyResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(202),
+    message: z.literal('Template queued successfully'),
+    data: z.object({
+        taskId: z.number()
+    })
+});
+
+/**
+ * Instance templates retrieved successfully
+ */
+export const zGetInstanceTemplatesResponse = z.object({
+    success: z.literal(true),
+    code: z.literal(200),
+    message: z.literal('Instance templates retrieved successfully'),
+    data: z.object({
+        systemOrgName: z.string(),
+        templates: z.array(z.object({
+            id: z.enum([
+                'private',
+                'public-b2b-b2c',
+                'public-b2c',
+                'public-b2b',
+                'minimal'
+            ]),
+            name: z.string(),
+            summary: z.string(),
+            icon: z.string(),
+            homeOrg: z.object({
+                kind: z.enum([
+                    'company',
+                    'public',
+                    'catch-all'
+                ]),
+                label: z.string(),
+                description: z.string(),
+                placeholder: z.string()
+            }).nullable(),
+            asksOrgRegistration: z.boolean(),
+            sections: z.array(z.object({
+                id: z.string(),
+                title: z.string(),
+                description: z.string(),
+                rows: z.array(z.object({
+                    label: z.string(),
+                    value: z.string(),
+                    source: z.enum([
+                        'baseline',
+                        'template',
+                        'option'
+                    ])
+                }))
+            }))
+        }))
     })
 });
 

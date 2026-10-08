@@ -13,6 +13,11 @@ Hono backend mounted inside Nitro (`server/`).
 
 - **Instances** — list, create (human or machine owner), rename, delete; custom domains and the
   primary domain; limits (audit-log retention, block).
+- **Templates** — every instance is created from a template (Private, Public B2B & B2C, Public
+  B2C only, Public B2B only, Minimal). The first org is always `SYSTEM` (Zitadel's own project and
+  the initial admin, locked down); a background task applies a security baseline, the template's
+  sign-in defaults and its home org, which becomes the default org. The Templates page shows what
+  each template sets; each instance's Template tab shows what was applied and can re-apply it.
 - **Default branding** — every new instance gets the LeiCraft_MC branding through a background
   task: dark theme only, background `#020719`, primary `#0392CA`, warning `#FF6467`, font color
   `#FFFFFF`, the Rubik font and no Zitadel watermark. Each instance's Branding tab compares its
@@ -61,14 +66,15 @@ LAVIAC/
 - **System API auth**: a **system API user** — an RSA keypair whose public key is registered in
   Zitadel runtime settings (`SystemAPIUsers`). The backend mints a self-signed RS256 JWT and sends
   it as `Authorization: Bearer` to `/system/v1/*`, and — with the `x-zitadel-instance-host`
-  header — to the Admin API of a single instance (branding, usage counts).
+  header — to the Admin, Management and v2 APIs of a single instance (templates, branding, usage
+  counts).
 
 ## Prerequisites
 
 - Zitadel **self-hosted** (the System API is not available on Zitadel Cloud).
 - A system API user in Zitadel's runtime settings with the public key installed and a `System`
-  membership holding `SYSTEM_OWNER` **and** `IAM_OWNER` (the latter for the default branding and
-  the org/user statistics — see `example.env`).
+  membership holding `SYSTEM_OWNER` **and** `IAM_OWNER` (the latter for the templates, the default
+  branding and the org/user statistics — see `example.env`).
 - An OIDC client (Authorization Code + PKCE) registered in Zitadel for LAVIAC, with redirect URI
   `${LAVIAC_APP_URL}/api/v1/auth/callback`, and a project role (default `laviac_admin`) granted to
   dashboard admins.

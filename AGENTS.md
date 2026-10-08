@@ -72,12 +72,23 @@ Style-Guides [docs/01](../../Style-Guides/docs/01-project-structure.md) and
    `LAVIAC_ZITADEL_APPLY_DEFAULT_BRANDING=false`. The startup plugin does **not** await
    `TaskScheduler.processQueue()` (the template does) so retrying branding tasks never hold back
    `API.init`.
-6. **Host-VM tooling reads below `LAVIAC_HOST_ROOT`.** `server/lib/host/` serves the host
+6. **Instances are created from templates.** `POST /instances` takes a `template`
+   (`server/lib/zitadel/templates.ts`: `private`, `public-b2b-b2c`, `public-b2c`, `public-b2b`,
+   `minimal`) and its options, always names the first org `SYSTEM` (Zitadel's project, the
+   Console and the owner as initial admin), stores the choice in `instance_setups` and queues the
+   step-based `provisionInstance` task (`server/lib/tasks/provisionInstance.ts`): SYSTEM org
+   lockdown → security baseline + template instance defaults → home org → default org. Templates
+   are code, read-only in the UI (`/dashboard/templates`); `InstanceTemplates.describe()` renders
+   the same plan the task writes. Keep the order: the SYSTEM org's own domain policy must exist
+   before the instance domain policy changes, or Zitadel rewrites the initial admin's username.
+   Every write is idempotent (add → update on 409, "not changed" = success) because a restart
+   reruns the task from step 0. Branding stays a separate task and is not part of any template.
+7. **Host-VM tooling reads below `LAVIAC_HOST_ROOT`.** `server/lib/host/` serves the host
    snapshot, per-minute metrics (`host_metrics`, 7-day retention, written by the cron job) and
    the apt update check. In Docker the host's `/` is mounted read-only (`/:/host:ro`) and
    `LAVIAC_HOST_ROOT=/host`; kernel values (CPU, load, memory, uptime) come from `/proc` and are
    the host's either way.
-7. **No public pages (internal-only console).** `/` redirects to `/dashboard`;
+8. **No public pages (internal-only console).** `/` redirects to `/dashboard`;
    `public/robots.txt` disallows everything and there is no sitemap. The public-site chrome is
    gone: no `layouts/default.vue`, `components/layout/Header.vue` or `Footer.vue`. The auth layout
    and `error.vue` show only the centered `ImgAppLogo`, like the template's onboarding layout.
@@ -86,14 +97,17 @@ Style-Guides [docs/01](../../Style-Guides/docs/01-project-structure.md) and
 
 - Backend routes: `server/lib/api/versions/v1/routes/`
   - `auth/` — OIDC login/callback, static login, methods, logout, session (= the current admin)
-  - `instances/` (+ `domains/`, `limits/`, `branding/`) — instance CRUD over the System API
+  - `instances/` (+ `domains/`, `limits/`, `branding/`, `template/`) — instance CRUD over the
+    System API
+  - `instance-templates/` — the read-only template list with the settings each applies
   - `domains/` — cross-instance domain checks
   - `admin/` (`statistics/`, `host/`, `updates/`, `audit/`, `tasks/`, `sessions/`) — admin tools
-- Zitadel: `server/lib/zitadel/{client,jwt,types,branding,releases,usage}.ts`; Zitadel → API
-  mappers + error mapping in `server/lib/api/utils/zitadel.ts`.
+- Zitadel: `server/lib/zitadel/{client,jwt,types,branding,templates,releases,usage}.ts`; Zitadel →
+  API mappers + error mapping in `server/lib/api/utils/zitadel.ts`.
 - Host VM: `server/lib/host/{info,metrics,updates}.ts`; cached statuses in
   `server/lib/api/utils/metadata.ts` (`RuntimeMetadata`).
-- Background work: `server/lib/tasks/` (`TaskScheduler`), `server/lib/utils/cron.ts`
+- Background work: `server/lib/tasks/` (`TaskScheduler`; `provisionInstance`,
+  `applyDefaultBranding`, shared Zitadel retries in `zitadelSteps.ts`), `server/lib/utils/cron.ts`
   (`CronJobHandler`: metrics every minute, cleanup hourly, update checks every 6 h).
 - OIDC/session: `server/lib/oidc/handler.ts`, `server/lib/api/utils/authHandler.ts`.
 - DB/audit: `server/lib/db/{index,schema,utils}.ts`, `server/lib/utils/audit.ts`.

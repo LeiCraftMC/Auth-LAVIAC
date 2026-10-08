@@ -1,8 +1,9 @@
 /**
- * Instance display helpers — one source for state badges and the primary domain, so the
- * list, the detail pages and the statistics stay consistent (like `getRoleColor`).
+ * Instance display helpers — one source for state badges, the primary domain and the template
+ * setting sources, so the list, the detail pages and the statistics stay consistent (like
+ * `getRoleColor`).
  */
-import type { Instance } from "~/utils/types";
+import type { Instance, TemplateSettingSection } from "~/utils/types";
 
 type BadgeColor = "success" | "info" | "warning" | "error" | "neutral";
 
@@ -32,3 +33,37 @@ export const INSTANCE_STATE_OPTIONS = Object.entries(INSTANCE_STATES).map(([valu
 export function getPrimaryDomain(instance: Pick<Instance, "domains">): string | undefined {
 	return instance.domains?.find((d) => d.primary)?.domain ?? instance.domains?.[0]?.domain;
 }
+
+/** Where a template setting's value comes from (`InstanceTemplateSourceBadge`, legends). */
+export const TEMPLATE_SETTING_SOURCES = {
+	baseline: {
+		label: "Baseline",
+		description: "Security baseline, the same in every template",
+		color: "neutral",
+		variant: "soft",
+		icon: "i-lucide-shield-check",
+	},
+	template: {
+		label: "Template",
+		description: "Decided by the template",
+		color: "primary",
+		variant: "soft",
+		icon: "i-lucide-layout-template",
+	},
+	option: {
+		label: "At creation",
+		description: "Chosen when the instance is created",
+		color: "neutral",
+		variant: "outline",
+		icon: "i-lucide-pencil-line",
+	},
+} as const satisfies Record<
+	TemplateSettingSection["rows"][number]["source"],
+	{
+		label: string;
+		description: string;
+		color: BadgeColor | "primary";
+		variant: "soft" | "outline";
+		icon: string;
+	}
+>;

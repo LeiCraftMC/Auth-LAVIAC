@@ -69,6 +69,7 @@ export namespace DB.Tables {
 	export const scheduled_tasks_paused_state = TableSchema.scheduled_tasks_paused_state;
 	export const hostMetrics = TableSchema.hostMetrics;
 	export const metadata = TableSchema.metadata;
+	export const instanceSetups = TableSchema.instanceSetups;
 }
 
 export namespace DB.Models {
@@ -78,4 +79,5 @@ export namespace DB.Models {
 	export type ScheduledTaskPausedState = typeof DB.Tables.scheduled_tasks_paused_state.$inferSelect;
 	export type HostMetric = typeof DB.Tables.hostMetrics.$inferSelect;
 	export type Metadata = typeof DB.Tables.metadata.$inferSelect;
+	export type InstanceSetup = typeof DB.Tables.instanceSetups.$inferSelect;
 }

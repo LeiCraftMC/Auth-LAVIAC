@@ -3,7 +3,7 @@
 
 import type { Client, ClientMeta, Composable, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteAdminSessionsBySessionIdData, DeleteAdminSessionsBySessionIdError, DeleteAdminSessionsBySessionIdResponse, DeleteInstancesByInstanceIdData, DeleteInstancesByInstanceIdDomainsByDomainData, DeleteInstancesByInstanceIdDomainsByDomainError, DeleteInstancesByInstanceIdDomainsByDomainResponse, DeleteInstancesByInstanceIdError, DeleteInstancesByInstanceIdLimitsData, DeleteInstancesByInstanceIdLimitsError, DeleteInstancesByInstanceIdLimitsResponse, DeleteInstancesByInstanceIdResponse, GetAdminAuditData, GetAdminAuditError, GetAdminAuditResponse, GetAdminHostData, GetAdminHostMetricsData, GetAdminHostMetricsError, GetAdminHostMetricsResponse, GetAdminHostResponse, GetAdminSessionsData, GetAdminSessionsResponse, GetAdminStatisticsData, GetAdminStatisticsResponse, GetAdminStatisticsUsageData, GetAdminStatisticsUsageError, GetAdminStatisticsUsageResponse, GetAdminTasksByTaskIdData, GetAdminTasksByTaskIdError, GetAdminTasksByTaskIdResponse, GetAdminTasksData, GetAdminTasksError, GetAdminTasksResponse, GetAdminUpdatesData, GetAdminUpdatesResponse, GetAuthCallbackData, GetAuthLoginData, GetAuthMethodsData, GetAuthMethodsResponse, GetAuthSessionData, GetAuthSessionError, GetAuthSessionResponse, GetDomainsByDomainExistsData, GetDomainsByDomainExistsError, GetDomainsByDomainExistsResponse, GetInstancesByInstanceIdBrandingData, GetInstancesByInstanceIdBrandingError, GetInstancesByInstanceIdBrandingResponse, GetInstancesByInstanceIdData, GetInstancesByInstanceIdDomainsData, GetInstancesByInstanceIdDomainsError, GetInstancesByInstanceIdDomainsResponse, GetInstancesByInstanceIdError, GetInstancesByInstanceIdResponse, GetInstancesData, GetInstancesResponse, PostAdminUpdatesCheckData, PostAdminUpdatesCheckResponse, PostAuthLoginData, PostAuthLoginError, PostAuthLoginResponse, PostAuthLogoutData, PostAuthLogoutError, PostAuthLogoutResponse, PostInstancesByInstanceIdBrandingApplyDefaultsData, PostInstancesByInstanceIdBrandingApplyDefaultsError, PostInstancesByInstanceIdBrandingApplyDefaultsResponse, PostInstancesByInstanceIdDomainsData, PostInstancesByInstanceIdDomainsError, PostInstancesByInstanceIdDomainsResponse, PostInstancesByInstanceIdDomainsSetPrimaryData, PostInstancesByInstanceIdDomainsSetPrimaryError, PostInstancesByInstanceIdDomainsSetPrimaryResponse, PostInstancesData, PostInstancesError, PostInstancesResponse, PutInstancesByInstanceIdData, PutInstancesByInstanceIdError, PutInstancesByInstanceIdLimitsData, PutInstancesByInstanceIdLimitsError, PutInstancesByInstanceIdLimitsResponse, PutInstancesByInstanceIdResponse } from './types.gen';
+import type { DeleteAdminSessionsBySessionIdData, DeleteAdminSessionsBySessionIdError, DeleteAdminSessionsBySessionIdResponse, DeleteInstancesByInstanceIdData, DeleteInstancesByInstanceIdDomainsByDomainData, DeleteInstancesByInstanceIdDomainsByDomainError, DeleteInstancesByInstanceIdDomainsByDomainResponse, DeleteInstancesByInstanceIdError, DeleteInstancesByInstanceIdLimitsData, DeleteInstancesByInstanceIdLimitsError, DeleteInstancesByInstanceIdLimitsResponse, DeleteInstancesByInstanceIdResponse, GetAdminAuditData, GetAdminAuditError, GetAdminAuditResponse, GetAdminHostData, GetAdminHostMetricsData, GetAdminHostMetricsError, GetAdminHostMetricsResponse, GetAdminHostResponse, GetAdminSessionsData, GetAdminSessionsResponse, GetAdminStatisticsData, GetAdminStatisticsResponse, GetAdminStatisticsUsageData, GetAdminStatisticsUsageError, GetAdminStatisticsUsageResponse, GetAdminTasksByTaskIdData, GetAdminTasksByTaskIdError, GetAdminTasksByTaskIdResponse, GetAdminTasksData, GetAdminTasksError, GetAdminTasksResponse, GetAdminUpdatesData, GetAdminUpdatesResponse, GetAuthCallbackData, GetAuthLoginData, GetAuthMethodsData, GetAuthMethodsResponse, GetAuthSessionData, GetAuthSessionError, GetAuthSessionResponse, GetDomainsByDomainExistsData, GetDomainsByDomainExistsError, GetDomainsByDomainExistsResponse, GetInstancesByInstanceIdBrandingData, GetInstancesByInstanceIdBrandingError, GetInstancesByInstanceIdBrandingResponse, GetInstancesByInstanceIdData, GetInstancesByInstanceIdDomainsData, GetInstancesByInstanceIdDomainsError, GetInstancesByInstanceIdDomainsResponse, GetInstancesByInstanceIdError, GetInstancesByInstanceIdResponse, GetInstancesByInstanceIdTemplateData, GetInstancesByInstanceIdTemplateError, GetInstancesByInstanceIdTemplateResponse, GetInstancesData, GetInstancesResponse, GetInstanceTemplatesData, GetInstanceTemplatesResponse, PostAdminUpdatesCheckData, PostAdminUpdatesCheckResponse, PostAuthLoginData, PostAuthLoginError, PostAuthLoginResponse, PostAuthLogoutData, PostAuthLogoutError, PostAuthLogoutResponse, PostInstancesByInstanceIdBrandingApplyDefaultsData, PostInstancesByInstanceIdBrandingApplyDefaultsError, PostInstancesByInstanceIdBrandingApplyDefaultsResponse, PostInstancesByInstanceIdDomainsData, PostInstancesByInstanceIdDomainsError, PostInstancesByInstanceIdDomainsResponse, PostInstancesByInstanceIdDomainsSetPrimaryData, PostInstancesByInstanceIdDomainsSetPrimaryError, PostInstancesByInstanceIdDomainsSetPrimaryResponse, PostInstancesByInstanceIdTemplateApplyData, PostInstancesByInstanceIdTemplateApplyError, PostInstancesByInstanceIdTemplateApplyResponse, PostInstancesData, PostInstancesError, PostInstancesResponse, PutInstancesByInstanceIdData, PutInstancesByInstanceIdError, PutInstancesByInstanceIdLimitsData, PutInstancesByInstanceIdLimitsError, PutInstancesByInstanceIdLimitsResponse, PutInstancesByInstanceIdResponse } from './types.gen';
 
 export type Options<TComposable extends Composable = '$fetch', TData extends TDataShape = TDataShape, ResT = unknown, DefaultT = undefined> = Options2<TComposable, TData, ResT, DefaultT> & {
     /**
@@ -90,7 +90,7 @@ export const getInstances = <TComposable extends Composable = '$fetch', DefaultT
 /**
  * Create a virtual instance
  *
- * Create a new Zitadel instance with its first org and an owner (human or machine). Unless disabled, the LAVIAC default branding is applied afterwards by a background task.
+ * Create a new Zitadel instance from a template. The first org is always the SYSTEM org, which holds the ZITADEL project and the owner (human or machine) as the initial admin. A background task then applies the template: the security baseline, the instance defaults and the home org, which becomes the default org. Unless disabled, a second task applies the LAVIAC default branding.
  */
 export const postInstances = <TComposable extends Composable = '$fetch', DefaultT extends PostInstancesResponse = PostInstancesResponse>(options: Options<TComposable, PostInstancesData, PostInstancesResponse, DefaultT>): RequestResult<TComposable, PostInstancesResponse | DefaultT, DefaultT> => (options.client ?? client).post<TComposable, PostInstancesResponse | DefaultT, PostInstancesError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -236,6 +236,39 @@ export const getInstancesByInstanceIdBranding = <TComposable extends Composable 
 export const postInstancesByInstanceIdBrandingApplyDefaults = <TComposable extends Composable = '$fetch', DefaultT extends PostInstancesByInstanceIdBrandingApplyDefaultsResponse = PostInstancesByInstanceIdBrandingApplyDefaultsResponse>(options: Options<TComposable, PostInstancesByInstanceIdBrandingApplyDefaultsData, PostInstancesByInstanceIdBrandingApplyDefaultsResponse, DefaultT>): RequestResult<TComposable, PostInstancesByInstanceIdBrandingApplyDefaultsResponse | DefaultT, DefaultT> => (options.client ?? client).post<TComposable, PostInstancesByInstanceIdBrandingApplyDefaultsResponse | DefaultT, PostInstancesByInstanceIdBrandingApplyDefaultsError, DefaultT>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/instances/{instanceId}/branding/_apply_defaults',
+    ...options
+});
+
+/**
+ * Get the instance's template
+ *
+ * The template the instance was created with, the settings it applied, the instance's current default org (read live from Zitadel) and the latest provisioning task.
+ */
+export const getInstancesByInstanceIdTemplate = <TComposable extends Composable = '$fetch', DefaultT extends GetInstancesByInstanceIdTemplateResponse = GetInstancesByInstanceIdTemplateResponse>(options: Options<TComposable, GetInstancesByInstanceIdTemplateData, GetInstancesByInstanceIdTemplateResponse, DefaultT>): RequestResult<TComposable, GetInstancesByInstanceIdTemplateResponse | DefaultT, DefaultT> => (options.client ?? client).get<TComposable, GetInstancesByInstanceIdTemplateResponse | DefaultT, GetInstancesByInstanceIdTemplateError, DefaultT>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/instances/{instanceId}/template',
+    ...options
+});
+
+/**
+ * Re-apply the instance's template
+ *
+ * Queue a background task that applies the instance's template again: the SYSTEM org lockdown, the instance defaults, the home org and the default org. Settings changed by hand since are overwritten.
+ */
+export const postInstancesByInstanceIdTemplateApply = <TComposable extends Composable = '$fetch', DefaultT extends PostInstancesByInstanceIdTemplateApplyResponse = PostInstancesByInstanceIdTemplateApplyResponse>(options: Options<TComposable, PostInstancesByInstanceIdTemplateApplyData, PostInstancesByInstanceIdTemplateApplyResponse, DefaultT>): RequestResult<TComposable, PostInstancesByInstanceIdTemplateApplyResponse | DefaultT, DefaultT> => (options.client ?? client).post<TComposable, PostInstancesByInstanceIdTemplateApplyResponse | DefaultT, PostInstancesByInstanceIdTemplateApplyError, DefaultT>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/instances/{instanceId}/template/_apply',
+    ...options
+});
+
+/**
+ * List the instance templates
+ *
+ * The templates a virtual instance can be created with, each with the settings it applies. Templates are defined in code and read-only.
+ */
+export const getInstanceTemplates = <TComposable extends Composable = '$fetch', DefaultT extends GetInstanceTemplatesResponse = GetInstanceTemplatesResponse>(options: Options<TComposable, GetInstanceTemplatesData, GetInstanceTemplatesResponse, DefaultT>): RequestResult<TComposable, GetInstanceTemplatesResponse | DefaultT, DefaultT> => (options.client ?? client).get<TComposable, GetInstanceTemplatesResponse | DefaultT, unknown, DefaultT>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/instance-templates',
     ...options
 });
 
