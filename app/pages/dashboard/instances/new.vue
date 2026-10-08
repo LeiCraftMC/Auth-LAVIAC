@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FormError, FormSubmitEvent } from "@nuxt/ui";
 import * as z from "zod";
+import { zPostInstancesBody } from "~/api-client/zod.gen";
 import type { CreatedInstance, InstanceTemplates, NewInstance, TemplateId } from "~/utils/types";
 
 definePageMeta({
@@ -31,8 +32,9 @@ const templates = await useAPIAsyncData<InstanceTemplates | null>(
 const templateList = computed(() => templates.data.value?.templates ?? []);
 const systemOrgName = computed(() => templates.data.value?.systemOrgName ?? "SYSTEM");
 
-// Same rule as the API (TemplateData.Options): a plain domain name, lowercase.
-const DOMAIN_PATTERN = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+// The API's rule for the home org domain (TemplateData.Options), from the generated schema.
+const homeOrgDomainSchema = zPostInstancesBody.shape.templateOptions.unwrap().unwrap()
+	.shape.homeOrgDomain;
 
 // The form is flat; `onSubmit` builds the nested `templateOptions` and `human` | `machine` body.
 const schema = z.object({
@@ -120,7 +122,7 @@ function validate(form: Partial<Schema>): FormError[] {
 		}
 
 		const domain = form.homeOrgDomain?.trim().toLowerCase();
-		if (domain && !DOMAIN_PATTERN.test(domain)) {
+		if (domain && !homeOrgDomainSchema.safeParse(domain).success) {
 			errors.push({ name: "homeOrgDomain", message: "Must be a domain name like users.example.com" });
 		}
 	}
@@ -236,7 +238,15 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 		icon: "i-lucide-check",
 		color: "success",
 	});
-	if (result.data.provisioningTaskId === null) {
+	if (!result.data.templateSaved) {
+		toast.add({
+			title: "The template could not be saved",
+			description:
+				"LAVIAC can't apply it to this instance. Configure the instance in the Zitadel Console or delete and recreate it.",
+			icon: "i-lucide-alert-triangle",
+			color: "error",
+		});
+	} else if (result.data.provisioningTaskId === null) {
 		toast.add({
 			title: "The template could not be queued",
 			description: "Apply it from the instance's Template page.",

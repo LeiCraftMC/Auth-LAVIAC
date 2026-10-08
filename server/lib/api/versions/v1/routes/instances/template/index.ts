@@ -24,6 +24,21 @@ function getSetup(instanceId: string) {
 		.get();
 }
 
+/** The latest `provisionInstance` task of the instance. */
+function getLastTask(instanceId: string) {
+	return DB.instance()
+		.select()
+		.from(DB.Tables.scheduled_tasks)
+		.where(
+			and(
+				eq(DB.Tables.scheduled_tasks.function, "provisionInstance"),
+				sql`json_extract(${DB.Tables.scheduled_tasks.args}, '$.instanceId') = ${instanceId}`,
+			),
+		)
+		.orderBy(desc(DB.Tables.scheduled_tasks.id))
+		.get();
+}
+
 router.get(
 	"/",
 
@@ -69,18 +84,7 @@ router.get(
 		}
 
 		const setup = getSetup(instanceId);
-
-		const lastTask = DB.instance()
-			.select()
-			.from(DB.Tables.scheduled_tasks)
-			.where(
-				and(
-					eq(DB.Tables.scheduled_tasks.function, "provisionInstance"),
-					sql`json_extract(${DB.Tables.scheduled_tasks.args}, '$.instanceId') = ${instanceId}`,
-				),
-			)
-			.orderBy(desc(DB.Tables.scheduled_tasks.id))
-			.get();
+		const lastTask = getLastTask(instanceId);
 
 		return APIResponse.success(c, "Template retrieved successfully", {
 			setup: setup
@@ -113,6 +117,7 @@ router.post(
 		responses: APIResponseSpec.describeWithWrongInputs(
 			APIResponseSpec.accepted("Template queued successfully", InstanceTemplateModel.Apply.Response),
 			APIResponseSpec.notFound("Instance not found, or it was created before templates"),
+			APIResponseSpec.conflict("Conflict: The template is already being applied"),
 		),
 	}),
 
@@ -125,6 +130,12 @@ router.post(
 
 		if (!getSetup(instanceId)) {
 			return APIResponse.notFound(c, "This instance was created before templates");
+		}
+
+		// A paused task only resumes after a LAVIAC restart, so it does not block a new run.
+		const lastTask = getLastTask(instanceId);
+		if (lastTask && (lastTask.status === "pending" || lastTask.status === "running")) {
+			return APIResponse.conflict(c, `The template is already being applied (task #${lastTask.id})`);
 		}
 
 		try {

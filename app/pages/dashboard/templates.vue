@@ -13,14 +13,19 @@ useSeoMeta({
 const route = useRoute();
 const toast = useToast();
 
+/** Set when the last load failed — shown instead of the loading spinner. */
+const loadError = ref<string | null>(null);
+
 const templates = await useAPIAsyncData<InstanceTemplates | null>(
 	"instance-templates",
 	async () => {
 		const res = await useAPI((api) => api.getInstanceTemplates({}));
 		if (!res.success) {
+			loadError.value = res.message;
 			toast.add({ title: "Failed to load the templates", description: res.message, color: "error" });
 			return null;
 		}
+		loadError.value = null;
 		return res.data;
 	},
 );
@@ -55,7 +60,26 @@ const selected = computed(() => list.value.find((t) => t.id === selectedId.value
 					</p>
 				</div>
 
-				<div v-if="!templates.data.value" class="flex justify-center py-8">
+				<UAlert
+					v-if="!templates.data.value && loadError"
+					color="error"
+					variant="subtle"
+					icon="i-lucide-alert-circle"
+					title="The templates could not be loaded"
+					:description="loadError"
+					:actions="[
+						{
+							label: 'Retry',
+							icon: 'i-lucide-refresh-cw',
+							color: 'neutral',
+							variant: 'outline',
+							loading: templates.loading.value,
+							onClick: () => templates.refresh(),
+						},
+					]"
+				/>
+
+				<div v-else-if="!templates.data.value" class="flex justify-center py-8">
 					<UIcon name="i-lucide-loader-2" class="animate-spin text-3xl text-slate-400" />
 				</div>
 

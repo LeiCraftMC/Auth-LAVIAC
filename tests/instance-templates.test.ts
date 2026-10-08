@@ -158,6 +158,39 @@ describe("Instance template routes", () => {
 		await makeAPIRequest("/v1/instance-templates", {}, 401);
 	});
 
+	test("re-applying is refused while the template is being applied", async () => {
+		const admin = await seedSession("admin");
+		DB.instance()
+			.insert(DB.Tables.instanceSetups)
+			.values({ instance_id: "inst-busy", template: "minimal", options: {} })
+			.run();
+		const task = DB.instance()
+			.insert(DB.Tables.scheduled_tasks)
+			.values({
+				function: "provisionInstance",
+				created_by_user_sub: null,
+				args: { instanceId: "inst-busy", actorSub: "test" },
+				status: "pending",
+				created_at: Date.now(),
+			})
+			.returning()
+			.get();
+
+		try {
+			await makeAPIRequest(
+				"/v1/instances/inst-busy/template/_apply",
+				{ method: "POST", authToken: admin.token },
+				409,
+			);
+		} finally {
+			// Never leave it queued: other test files process the task queue.
+			DB.instance()
+				.delete(DB.Tables.scheduled_tasks)
+				.where(eq(DB.Tables.scheduled_tasks.id, task.id))
+				.run();
+		}
+	});
+
 	test("instance creation validates the template options", async () => {
 		const admin = await seedSession("admin");
 		const owner = {
@@ -222,7 +255,14 @@ describe("Provisioning task", () => {
 	const notPaused = { getV: () => false, setV() {} } as never;
 
 	/** Mock every Zitadel call the task makes; returns the ordered call log. */
-	function mockZitadel(opts: { existingSystemLoginPolicy?: boolean } = {}) {
+	function mockZitadel(
+		opts: {
+			existingSystemLoginPolicy?: boolean;
+			/** Org ids `findOrgById` finds (default: every id). */
+			existingOrgIds?: string[];
+			failAddingDomain?: boolean;
+		} = {},
+	) {
 		const calls: { name: string; args: unknown[] }[] = [];
 		const record =
 			<T>(name: string, result?: (...args: any[]) => T) =>
@@ -250,9 +290,21 @@ describe("Provisioning task", () => {
 			),
 		);
 		mock(
+			"findOrgById",
+			record("findOrgById", (_host: string, id: string) =>
+				!opts.existingOrgIds || opts.existingOrgIds.includes(id) ? { id } : null,
+			),
+		);
+		mock(
 			"addOrg",
 			record("addOrg", () => "home-1"),
 		);
+		mock("addOrgDomain", async (...args: any[]) => {
+			calls.push({ name: "addOrgDomain", args });
+			if (opts.failAddingDomain) {
+				throw new ZitadelApiError(400, "Errors.Org.DomainNotAllowed");
+			}
+		});
 		mock("addOrgLoginPolicy", async (...args: any[]) => {
 			calls.push({ name: "addOrgLoginPolicy", args });
 			if (opts.existingSystemLoginPolicy && args[1] === "sys-1") {
@@ -268,7 +320,6 @@ describe("Provisioning task", () => {
 			"addOrgDomainPolicy",
 			"updateOrgDomainPolicy",
 			"setOrgMetadata",
-			"addOrgDomain",
 			"setPrimaryOrgDomain",
 			"setSecurityPolicy",
 			"updateDefaultPasswordComplexityPolicy",
@@ -297,10 +348,11 @@ describe("Provisioning task", () => {
 		instanceId: string,
 		template: InstanceTemplates.Id,
 		options: InstanceTemplates.Options,
+		orgs: { system_org_id?: string; home_org_id?: string } = {},
 	) {
 		DB.instance()
 			.insert(DB.Tables.instanceSetups)
-			.values({ instance_id: instanceId, template, options, created_by_user_sub: "test" })
+			.values({ instance_id: instanceId, template, options, created_by_user_sub: "test", ...orgs })
 			.run();
 	}
 
@@ -375,24 +427,69 @@ describe("Provisioning task", () => {
 	});
 
 	test("a second run reuses the stored orgs", async () => {
+		seedSetup(
+			"inst-reuse",
+			"public-b2c",
+			{ homeOrgName: "Users" },
+			{ system_org_id: "sys-1", home_org_id: "home-1" },
+		);
 		const { index, argsOf } = mockZitadel();
 
-		const result = await run("inst-1");
+		const result = await run("inst-reuse");
 		expect(result).toMatchObject({ success: true });
+		expect(argsOf("findOrgById")[1]).toBe("home-1");
 		expect(index("addOrg")).toBe(-1);
 		expect(index("findOrgByName")).toBe(-1);
 		expect(argsOf("setDefaultOrg")[1]).toBe("home-1");
 	});
 
-	test("minimal keeps the SYSTEM org as the default org", async () => {
-		seedSetup("inst-2", "minimal", {});
-		const { index } = mockZitadel();
+	test("recreates a stored home org that was deleted", async () => {
+		seedSetup(
+			"inst-deleted-org",
+			"public-b2c",
+			{ homeOrgName: "Users" },
+			{ system_org_id: "sys-1", home_org_id: "home-gone" },
+		);
+		const { argsOf } = mockZitadel({ existingOrgIds: ["sys-1"] });
 
-		const result = await run("inst-2");
+		const result = await run("inst-deleted-org");
+		expect(result).toMatchObject({ success: true });
+		expect(argsOf("findOrgByName")[1]).toBe("Users");
+		expect(argsOf("addOrg")[1]).toBe("Users");
+		expect(argsOf("setDefaultOrg")[1]).toBe("home-1");
+
+		const setup = DB.instance()
+			.select()
+			.from(DB.Tables.instanceSetups)
+			.where(eq(DB.Tables.instanceSetups.instance_id, "inst-deleted-org"))
+			.get();
+		expect(setup?.home_org_id).toBe("home-1");
+	});
+
+	test("switches domain validation back on when adding the domain fails", async () => {
+		seedSetup("inst-bad-domain", "public-b2c", {
+			homeOrgName: "Users",
+			homeOrgDomain: "users.example.com",
+		});
+		const { index } = mockZitadel({ failAddingDomain: true });
+
+		const result = await run("inst-bad-domain");
+		expect(result).toMatchObject({ success: false });
+		expect(index("addOrgDomainPolicy", "home-1")).toBeGreaterThan(-1);
+		expect(index("setPrimaryOrgDomain", "home-1")).toBe(-1);
+		expect(index("resetOrgDomainPolicy", "home-1")).toBeGreaterThan(index("addOrgDomain", "home-1"));
+		expect(index("setDefaultOrg")).toBe(-1);
+	});
+
+	test("minimal sets the SYSTEM org as the default org", async () => {
+		seedSetup("inst-minimal", "minimal", {});
+		const { index, argsOf } = mockZitadel();
+
+		const result = await run("inst-minimal");
 		expect(result).toMatchObject({ success: true });
 		expect(index("addOrgLoginPolicy", "sys-1")).toBeGreaterThan(-1);
 		expect(index("addOrg")).toBe(-1);
-		expect(index("setDefaultOrg")).toBe(-1);
+		expect(argsOf("setDefaultOrg")[1]).toBe("sys-1");
 	});
 
 	test("fails without a template row", async () => {

@@ -112,9 +112,9 @@ router.post(
 			`${body.instanceName} (template ${template})`,
 		);
 
-		// The instance exists from here on: failures below are logged, not returned — the
-		// template can be re-applied from the instance's Template page.
-		let provisioningTaskId: number | null = null;
+		// The instance exists from here on: failures below are logged and reported in the response,
+		// not returned as errors.
+		let templateSaved = false;
 		try {
 			DB.instance()
 				.insert(DB.Tables.instanceSetups)
@@ -125,15 +125,25 @@ router.post(
 					created_by_user_sub: authContext.user_sub,
 				})
 				.run();
-
-			provisioningTaskId = await TaskScheduler.enqueueTask(
-				"provisionInstance",
-				{ instanceId: result.instanceId, actorSub: authContext.user_sub },
-				{ created_by_user_sub: authContext.user_sub },
-				{ storeLogs: true },
-			);
+			templateSaved = true;
 		} catch (err) {
-			Logger.error("Failed to queue the provisioning task:", err);
+			Logger.error("Failed to save the instance's template:", err);
+		}
+
+		// Without the saved template there is nothing to apply, now or from the Template page.
+		let provisioningTaskId: number | null = null;
+		if (templateSaved) {
+			try {
+				provisioningTaskId = await TaskScheduler.enqueueTask(
+					"provisionInstance",
+					{ instanceId: result.instanceId, actorSub: authContext.user_sub },
+					{ created_by_user_sub: authContext.user_sub },
+					{ storeLogs: true },
+				);
+			} catch (err) {
+				// The template can be applied from the instance's Template page.
+				Logger.error("Failed to queue the provisioning task:", err);
+			}
 		}
 
 		let brandingTaskId: number | null = null;
@@ -155,6 +165,7 @@ router.post(
 			instanceId: result.instanceId,
 			pat: result.pat,
 			machineKey: result.machineKey,
+			templateSaved,
 			provisioningTaskId,
 			brandingTaskId,
 		} satisfies InstancesModel.Create.Response);

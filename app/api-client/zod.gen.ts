@@ -152,6 +152,7 @@ export const zPostInstancesResponse = z.object({
         instanceId: z.string(),
         pat: z.string().optional(),
         machineKey: z.string().optional(),
+        templateSaved: z.boolean(),
         provisioningTaskId: z.number().nullable(),
         brandingTaskId: z.number().nullable()
     })

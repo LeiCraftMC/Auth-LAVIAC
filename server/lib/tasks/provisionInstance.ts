@@ -217,7 +217,13 @@ export const ProvisionInstanceTask = new TaskHandler.StepBasedTaskFn(
 						.where(eq(DB.Tables.instanceSetups.instance_id, args.instanceId))
 						.get();
 
-					let homeOrgId = stored?.homeOrgId ?? (await ZitadelClient.findOrgByName(host, org.name))?.id;
+					// A stored org deleted since (e.g. by hand) is looked up again by name or recreated.
+					let homeOrgId = stored?.homeOrgId;
+					if (homeOrgId && !(await ZitadelClient.findOrgById(host, homeOrgId))) {
+						logger.warn(`The stored home org ${homeOrgId} no longer exists.`);
+						homeOrgId = null;
+					}
+					homeOrgId ??= (await ZitadelClient.findOrgByName(host, org.name))?.id ?? null;
 					if (!homeOrgId) {
 						try {
 							homeOrgId = await ZitadelClient.addOrg(host, org.name);
@@ -253,66 +259,71 @@ export const ProvisionInstanceTask = new TaskHandler.StepBasedTaskFn(
 		const homeOrgId = state.homeOrgId;
 		if (!org || !homeOrgId) return { success: true };
 
-		const actions: Action[] = [];
 		if (org.loginPolicy) {
-			actions.push(orgLoginPolicyAction(host, homeOrgId, org.name, org.loginPolicy));
+			const result = await runActions(logger, isPaused, [
+				orgLoginPolicyAction(host, homeOrgId, org.name, org.loginPolicy),
+			]);
+			if (!result.success || result.paused) return result;
 		}
 
 		const domain = org.domain;
-		if (domain) {
-			// LAVIAC vouches for the domain: a temporary org domain policy without validation lets
-			// Zitadel verify it on add. Same suffix setting as the instance, so no username changes.
-			const unvalidated = { ...plan.instance.domainPolicy, validateOrgDomains: false };
-			actions.push(
-				[
-					`${org.name}: skip domain validation`,
-					() =>
-						addOrUpdate(
-							() => ZitadelClient.addOrgDomainPolicy(host, homeOrgId, unvalidated),
-							() => ZitadelClient.updateOrgDomainPolicy(host, homeOrgId, unvalidated),
-						),
-				],
-				[
-					`${org.name}: add the domain ${domain}`,
-					() => ignoreStatus(409, () => ZitadelClient.addOrgDomain(host, homeOrgId, domain)),
-				],
-				[
-					`${org.name}: make ${domain} the primary domain`,
-					async () => {
-						try {
-							await ZitadelClient.setPrimaryOrgDomain(host, homeOrgId, domain);
-						} catch (err) {
-							if (ZitadelTaskSteps.isStatus(err, 404)) {
-								throw new ZitadelApiError(
-									400,
-									`The domain ${domain} is not on the org; another org of the instance may hold it`,
-								);
-							}
-							throw err;
+		if (!domain) return { success: true };
+
+		// LAVIAC vouches for the domain: a temporary org domain policy without validation lets
+		// Zitadel verify it on add. Same suffix setting as the instance, so no username changes.
+		const unvalidated = { ...plan.instance.domainPolicy, validateOrgDomains: false };
+		const domainResult = await runActions(logger, isPaused, [
+			[
+				`${org.name}: skip domain validation`,
+				() =>
+					addOrUpdate(
+						() => ZitadelClient.addOrgDomainPolicy(host, homeOrgId, unvalidated),
+						() => ZitadelClient.updateOrgDomainPolicy(host, homeOrgId, unvalidated),
+					),
+			],
+			[
+				`${org.name}: add the domain ${domain}`,
+				() => ignoreStatus(409, () => ZitadelClient.addOrgDomain(host, homeOrgId, domain)),
+			],
+			[
+				`${org.name}: make ${domain} the primary domain`,
+				async () => {
+					try {
+						await ZitadelClient.setPrimaryOrgDomain(host, homeOrgId, domain);
+					} catch (err) {
+						if (ZitadelTaskSteps.isStatus(err, 404)) {
+							throw new ZitadelApiError(
+								400,
+								`The domain ${domain} is not on the org; another org of the instance may hold it`,
+							);
 						}
-					},
-				],
-				[
-					`${org.name}: restore domain validation`,
-					() => ignoreStatus(404, () => ZitadelClient.resetOrgDomainPolicy(host, homeOrgId)),
-				],
-			);
-		}
+						throw err;
+					}
+				},
+			],
+		]);
 
-		return runActions(logger, isPaused, actions);
+		// Also after a failure: the org must not keep accepting unverified domains. (A pause
+		// skips this, but the step then runs again from its start on resume.)
+		const restoreResult = await runActions(logger, isPaused, [
+			[
+				`${org.name}: restore domain validation`,
+				() => ignoreStatus(404, () => ZitadelClient.resetOrgDomainPolicy(host, homeOrgId)),
+			],
+		]);
+
+		return !domainResult.success || domainResult.paused ? domainResult : restoreResult;
 	})
-	.addStep("Make the home org the default org", async (args, logger, state, isPaused) => {
-		const { host, plan } = requireState(state);
-		const homeOrgId = state.homeOrgId;
+	.addStep("Set the default org", async (args, logger, state, isPaused) => {
+		const { host, plan, systemOrgId } = requireState(state);
+		// Without a home org (Minimal) the SYSTEM org is the default org — set it explicitly, so
+		// re-applying undoes a default org changed by hand like every other setting.
+		const defaultOrgId = plan.homeOrg ? state.homeOrgId : systemOrgId;
+		if (!defaultOrgId) return { success: false, message: "The home org was not resolved" };
 
-		const actions: Action[] = [];
-		if (plan.homeOrg && homeOrgId) {
-			actions.push(["Setting the default org", () => ZitadelClient.setDefaultOrg(host, homeOrgId)]);
-		} else {
-			logger.info("The SYSTEM org stays the default org.");
-		}
-
-		const result = await runActions(logger, isPaused, actions);
+		const result = await runActions(logger, isPaused, [
+			["Setting the default org", () => ZitadelClient.setDefaultOrg(host, defaultOrgId)],
+		]);
 		if (result.success && !result.paused) {
 			await Audit.log(args.actorSub, "instance.template.apply", args.instanceId, plan.template);
 			logger.info("Template applied.");

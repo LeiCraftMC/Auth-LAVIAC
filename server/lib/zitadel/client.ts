@@ -386,6 +386,16 @@ export class ZitadelClient {
 		return res.result?.[0] ?? null;
 	}
 
+	/** `null` when no such org exists (a removed org drops out of the search). */
+	static async findOrgById(instanceHost: string, id: string): Promise<ZitadelOrganization | null> {
+		const res = await ZitadelClient.request<ZitadelListOrganizationsResponse>(
+			"POST",
+			"/v2/organizations/_search",
+			{ instanceHost, body: { queries: [{ idQuery: { id } }] } },
+		);
+		return res.result?.[0] ?? null;
+	}
+
 	/** Create an org without admins (the instance's IAM owners manage it). Returns its id. */
 	static async addOrg(instanceHost: string, name: string): Promise<string> {
 		const res = await ZitadelClient.request<ZitadelAddOrganizationResponse>(

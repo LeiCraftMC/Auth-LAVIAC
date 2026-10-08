@@ -6,14 +6,19 @@ const toast = useToast();
 const instance = useSubrouterInjectedData<Instance>("instance").inject();
 const instanceId = instance.data.value.id;
 
+/** Set when the last load failed — shown instead of the loading spinner. */
+const loadError = ref<string | null>(null);
+
 const templateSetup = await useAPIAsyncData<InstanceTemplateSetup | null>(
 	`instance-${instanceId}-template`,
 	async () => {
 		const res = await useAPI((api) => api.getInstancesByInstanceIdTemplate({ path: { instanceId } }));
 		if (!res.success) {
+			loadError.value = res.message;
 			toast.add({ title: "Failed to load the template", description: res.message, color: "error" });
 			return null;
 		}
+		loadError.value = null;
 		return res.data;
 	},
 );
@@ -142,7 +147,26 @@ async function applyTemplate() {
 			</p>
 		</div>
 
-		<div v-if="!templateSetup.data.value" class="flex justify-center py-8">
+		<UAlert
+			v-if="!templateSetup.data.value && loadError"
+			color="error"
+			variant="subtle"
+			icon="i-lucide-alert-circle"
+			title="The template could not be loaded"
+			:description="loadError"
+			:actions="[
+				{
+					label: 'Retry',
+					icon: 'i-lucide-refresh-cw',
+					color: 'neutral',
+					variant: 'outline',
+					loading: templateSetup.loading.value,
+					onClick: () => templateSetup.refresh(),
+				},
+			]"
+		/>
+
+		<div v-else-if="!templateSetup.data.value" class="flex justify-center py-8">
 			<UIcon name="i-lucide-loader-2" class="animate-spin text-3xl text-slate-400" />
 		</div>
 
@@ -260,8 +284,10 @@ async function applyTemplate() {
 		>
 			<p class="text-sm text-slate-300">
 				The SYSTEM org lockdown, the instance defaults, the home org's policies and the default org
-				are written again. Changes made to these settings in the Console since are overwritten.
-				Nothing is deleted, and users and apps are not touched.
+				are written again. Changes made to these settings in the Console since are overwritten. If
+				the home org has a domain, its own domain policy is removed afterwards, so it uses the
+				instance default again. If the home org was deleted, it is created again. No users or apps
+				are touched.
 			</p>
 
 			<template #footer>

@@ -96,6 +96,8 @@ export namespace InstancesModel.Create {
 		instanceId: z.string(),
 		pat: z.string().optional(),
 		machineKey: z.string().optional(),
+		/** `false` when the template choice could not be stored: it can't be applied then. */
+		templateSaved: z.boolean(),
 		/** The queued `provisionInstance` task, `null` when it could not be queued. */
 		provisioningTaskId: z.number().nullable(),
 		/** The queued `applyDefaultBranding` task, `null` when default branding is disabled. */

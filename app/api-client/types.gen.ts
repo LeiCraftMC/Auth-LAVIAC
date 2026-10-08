@@ -291,6 +291,7 @@ export type PostInstancesResponses = {
             instanceId: string;
             pat?: string;
             machineKey?: string;
+            templateSaved: boolean;
             provisioningTaskId: number | null;
             brandingTaskId: number | null;
         };
@@ -1001,6 +1002,14 @@ export type PostInstancesByInstanceIdTemplateApplyErrors = {
         success: false;
         code: 404;
         message: 'Instance not found, or it was created before templates';
+    };
+    /**
+     * Conflict: The template is already being applied
+     */
+    409: {
+        success: false;
+        code: 409;
+        message: 'Conflict: The template is already being applied';
     };
 };
 
