@@ -222,7 +222,7 @@ async function applyTemplate() {
 				variant="subtle"
 				icon="i-lucide-user-cog"
 				title="Initial admin"
-				description="The owner given at creation lives in the SYSTEM org as the instance's first IAM owner. Use it to set up the instance, then create admin accounts in the home org, give them IAM owner rights and remove or deactivate it. Signing in to the SYSTEM org requires MFA."
+				description="The owner created with the instance lives in the SYSTEM org as its first IAM owner. Use it to set up the instance, then create admin accounts in the home org, give them IAM owner rights and remove or deactivate it."
 			/>
 
 			<DashboardSectionCard

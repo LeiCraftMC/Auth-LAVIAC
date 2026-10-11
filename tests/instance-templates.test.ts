@@ -1,26 +1,31 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import { and, eq } from "drizzle-orm";
 import { InstanceTemplatesModel } from "../server/lib/api/versions/v1/routes/instance-templates/model";
+import { InstancesModel } from "../server/lib/api/versions/v1/routes/instances/model";
 import { DB } from "../server/lib/db";
+import { TaskScheduler } from "../server/lib/tasks";
 import { ProvisionInstanceTask } from "../server/lib/tasks/provisionInstance";
+import { ZitadelTaskSteps } from "../server/lib/tasks/zitadelSteps";
 import { ZitadelApiError, ZitadelClient } from "../server/lib/zitadel/client";
+import { InitialAdmin } from "../server/lib/zitadel/initialAdmin";
 import { InstanceTemplates } from "../server/lib/zitadel/templates";
 import { makeAPIRequest } from "./helpers/api";
 import { seedSession } from "./helpers/seed";
 
 describe("Instance templates", () => {
-	test("every template locks down the SYSTEM org the same way", () => {
+	test("every template closes the SYSTEM org the same way", () => {
 		const plans = InstanceTemplates.IDS.map((id) =>
 			InstanceTemplates.resolve(id, { homeOrgName: "Acme" }),
 		);
 		const [first] = plans;
 		for (const plan of plans) {
 			expect(plan.systemOrg.name).toBe("SYSTEM");
+			// Nobody can join; MFA and discovery as in a plain org (it only holds the initial admin).
 			expect(plan.systemOrg.loginPolicy).toMatchObject({
 				allowRegister: false,
 				allowExternalIdp: false,
-				forceMfa: true,
-				forceMfaLocalOnly: false,
+				forceMfa: false,
+				allowDomainDiscovery: true,
 			});
 			expect(plan.systemOrg.domainPolicy?.userLoginMustBeDomain).toBe(false);
 			expect(plan.systemOrg).toEqual(first?.systemOrg as InstanceTemplates.OrgPlan);
@@ -141,6 +146,46 @@ describe("Instance templates", () => {
 	});
 });
 
+describe("Generated initial admin", () => {
+	test("passwords contain every character class", () => {
+		for (let i = 0; i < 50; i++) {
+			const password = InitialAdmin.generatePassword();
+			expect(password).toHaveLength(InitialAdmin.PASSWORD_LENGTH);
+			expect(password).toMatch(/[a-z]/);
+			expect(password).toMatch(/[A-Z]/);
+			expect(password).toMatch(/[0-9]/);
+			expect(password).toMatch(/[^A-Za-z0-9]/);
+		}
+		expect(InitialAdmin.generatePassword()).not.toBe(InitialAdmin.generatePassword());
+	});
+
+	test("is a verified human that keeps its password", () => {
+		const { owner, password } = InitialAdmin.generate("de");
+		expect(owner).toMatchObject({
+			userName: InitialAdmin.USERNAME,
+			email: { email: InitialAdmin.EMAIL, isEmailVerified: true },
+			profile: { preferredLanguage: "de" },
+			password: { password, passwordChangeRequired: false },
+		});
+	});
+});
+
+describe("Not-changed detection", () => {
+	test("covers Zitadel's no-op answers", () => {
+		for (const message of [
+			"Default Login Policy has not been changed (INSTANCE-5M9vdd)",
+			"Organisation not changed (ORG-xyz)",
+			"No changes (POLICY-EWsf3)",
+			"Errors.NoChangesFound",
+		]) {
+			expect(ZitadelTaskSteps.isNotChangedError(new ZitadelApiError(400, message))).toBe(true);
+		}
+		expect(
+			ZitadelTaskSteps.isNotChangedError(new ZitadelApiError(400, "Errors.Org.DomainNotAllowed")),
+		).toBe(false);
+	});
+});
+
 describe("Instance template routes", () => {
 	test("list the templates for admins only", async () => {
 		const admin = await seedSession("admin");
@@ -156,6 +201,52 @@ describe("Instance template routes", () => {
 
 		await makeAPIRequest("/v1/instance-templates", { authToken: member.token }, 403);
 		await makeAPIRequest("/v1/instance-templates", {}, 401);
+	});
+
+	test("creating without an owner generates the initial admin and returns its password once", async () => {
+		const admin = await seedSession("admin");
+		const create = spyOn(ZitadelClient, "createInstance").mockResolvedValue({
+			instanceId: "inst-generated",
+		});
+		// Don't start the provisioning task: there is no Zitadel in the test env.
+		const enqueue = spyOn(TaskScheduler, "enqueueTask").mockResolvedValue(4711);
+
+		try {
+			const data = await makeAPIRequest(
+				"/v1/instances",
+				{
+					method: "POST",
+					authToken: admin.token,
+					body: {
+						instanceName: "Generated",
+						template: "minimal",
+						defaultLanguage: "de",
+					},
+					expectedBodySchema: InstancesModel.Create.Response,
+				},
+				201,
+			);
+
+			const request = create.mock.calls[0]?.[0];
+			expect(request?.firstOrgName).toBe("SYSTEM");
+			expect(request?.machine).toBeUndefined();
+			expect(request?.human).toMatchObject({
+				userName: InitialAdmin.USERNAME,
+				profile: { preferredLanguage: "de" },
+				password: { passwordChangeRequired: false },
+			});
+
+			expect(data.initialAdmin).toEqual({
+				userName: InitialAdmin.USERNAME,
+				password: request?.human?.password.password as string,
+			});
+			expect(data.templateSaved).toBe(true);
+			expect(data.provisioningTaskId).toBe(4711);
+			expect(enqueue.mock.calls[0]?.[0]).toBe("provisionInstance");
+		} finally {
+			create.mockRestore();
+			enqueue.mockRestore();
+		}
 	});
 
 	test("re-applying is refused while the template is being applied", async () => {
@@ -203,6 +294,21 @@ describe("Instance template routes", () => {
 		await makeAPIRequest(
 			"/v1/instances",
 			{ method: "POST", authToken: admin.token, body: { instanceName: "Acme", human: owner } },
+			400,
+		);
+		// At most one owner; none means a generated initial admin.
+		await makeAPIRequest(
+			"/v1/instances",
+			{
+				method: "POST",
+				authToken: admin.token,
+				body: {
+					instanceName: "Acme",
+					template: "minimal",
+					human: owner,
+					machine: { userName: "bot", name: "Bot" },
+				},
+			},
 			400,
 		);
 		await makeAPIRequest(
@@ -383,7 +489,7 @@ describe("Provisioning task", () => {
 
 		// An existing SYSTEM login policy is updated, without the factor fields.
 		const update = argsOf("updateOrgLoginPolicy", "sys-1")[2];
-		expect(update).toMatchObject({ allowRegister: false, forceMfa: true });
+		expect(update).toMatchObject({ allowRegister: false, allowExternalIdp: false });
 		expect(update).not.toHaveProperty("secondFactors");
 
 		expect(argsOf("setRestrictions")[1]).toEqual({ disallowPublicOrgRegistration: false });

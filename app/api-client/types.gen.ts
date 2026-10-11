@@ -291,6 +291,10 @@ export type PostInstancesResponses = {
             instanceId: string;
             pat?: string;
             machineKey?: string;
+            initialAdmin: {
+                userName: string;
+                password: string;
+            } | null;
             templateSaved: boolean;
             provisioningTaskId: number | null;
             brandingTaskId: number | null;
@@ -1048,6 +1052,7 @@ export type GetInstanceTemplatesResponses = {
         message: 'Instance templates retrieved successfully';
         data: {
             systemOrgName: string;
+            initialAdminUserName: string;
             templates: Array<{
                 id: 'private' | 'public-b2b-b2c' | 'public-b2c' | 'public-b2b' | 'minimal';
                 name: string;

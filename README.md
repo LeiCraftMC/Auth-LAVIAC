@@ -11,13 +11,15 @@ Hono backend mounted inside Nitro (`server/`).
 
 ## Features
 
-- **Instances** — list, create (human or machine owner), rename, delete; custom domains and the
-  primary domain; limits (audit-log retention, block).
+- **Instances** — list, create (generated one-time initial admin, or a given human or machine
+  owner), rename, delete; custom domains and the primary domain; limits (audit-log retention,
+  block).
 - **Templates** — every instance is created from a template (Private, Public B2B & B2C, Public
   B2C only, Public B2B only, Minimal). The first org is always `SYSTEM` (Zitadel's own project and
-  the initial admin, locked down); a background task applies a security baseline, the template's
-  sign-in defaults and its home org, which becomes the default org. The Templates page shows what
-  each template sets; each instance's Template tab shows what was applied and can re-apply it.
+  the one-time initial admin, closed to sign-up); a background task applies a security baseline,
+  the template's sign-in defaults and its home org, which becomes the default org. The Templates
+  page shows what each template sets; each instance's Template tab shows what was applied and can
+  re-apply it.
 - **Default branding** — every new instance gets the LeiCraft_MC branding through a background
   task: dark theme only, background `#020719`, primary `#0392CA`, warning `#FF6467`, font color
   `#FFFFFF`, the Rubik font and no Zitadel watermark. Each instance's Branding tab compares its

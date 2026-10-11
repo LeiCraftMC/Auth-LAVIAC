@@ -75,8 +75,10 @@ Style-Guides [docs/01](../../Style-Guides/docs/01-project-structure.md) and
 6. **Instances are created from templates.** `POST /instances` takes a `template`
    (`server/lib/zitadel/templates.ts`: `private`, `public-b2b-b2c`, `public-b2c`, `public-b2b`,
    `minimal`) and its options, always names the first org `SYSTEM` (Zitadel's project, the
-   Console and the owner as initial admin), stores the choice in `instance_setups` and queues the
-   step-based `provisionInstance` task (`server/lib/tasks/provisionInstance.ts`): SYSTEM org
+   Console and the owner as initial admin; without one, `server/lib/zitadel/initialAdmin.ts`
+   generates a human `initial-admin` whose password is returned once), stores the choice in
+   `instance_setups` and queues the step-based `provisionInstance` task
+   (`server/lib/tasks/provisionInstance.ts`): SYSTEM org
    lockdown → security baseline + template instance defaults → home org → default org. Templates
    are code, read-only in the UI (`/dashboard/templates`); `InstanceTemplates.describe()` renders
    the same plan the task writes. Keep the order: the SYSTEM org's own domain policy must exist

@@ -67,7 +67,9 @@ export namespace InstancesModel.Create {
 	export type MachineOwner = z.infer<typeof MachineOwner>;
 
 	// The first org is always the SYSTEM org (InstanceTemplates.SYSTEM_ORG_NAME); the owner is
-	// created there as the initial admin. The template's home org is created afterwards.
+	// created there as the initial admin. Without `human` and `machine` LAVIAC generates a human
+	// initial admin (InitialAdmin) and returns its password once. The template's home org is
+	// created afterwards.
 	export const Body = z
 		.object({
 			instanceName: z.string().min(1),
@@ -79,8 +81,8 @@ export namespace InstancesModel.Create {
 			machine: MachineOwner.optional(),
 		})
 		.refine(
-			(data) => (data.human ? 1 : 0) + (data.machine ? 1 : 0) === 1,
-			"Exactly one of `human` or `machine` must be set (the instance owner).",
+			(data) => !(data.human && data.machine),
+			"Set at most one of `human` or `machine` (the initial admin); neither generates one.",
 		)
 		.refine(
 			(data) =>
@@ -96,6 +98,8 @@ export namespace InstancesModel.Create {
 		instanceId: z.string(),
 		pat: z.string().optional(),
 		machineKey: z.string().optional(),
+		/** The generated initial admin's sign-in, returned only here; `null` for a given owner. */
+		initialAdmin: z.object({ userName: z.string(), password: z.string() }).nullable(),
 		/** `false` when the template choice could not be stored: it can't be applied then. */
 		templateSaved: z.boolean(),
 		/** The queued `provisionInstance` task, `null` when it could not be queued. */

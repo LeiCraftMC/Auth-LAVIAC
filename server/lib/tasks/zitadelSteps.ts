@@ -5,18 +5,25 @@ type TaskLogger = TaskHandler.BasicTaskLoggerLike;
 type PausedRef = Parameters<TaskHandler.SubTaskStepFn>[3];
 
 // A freshly created instance becomes addressable a few seconds after `_create` returns (Zitadel's
-// projections catch up asynchronously), so transient failures are retried for about a minute.
-const RETRY_ATTEMPTS = 20;
+// projections catch up asynchronously), so transient failures are retried for about a minute and
+// a half. The window is measured in time, not attempts: a request that hangs until the client's
+// 30 s timeout must not stretch it to many minutes.
+const RETRY_WINDOW_MS = 90_000;
 const RETRY_DELAY_MS = 3000;
 
 // Client errors that retrying cannot fix.
 const PERMANENT_STATUSES = [400, 401, 403];
 
+// Zitadel's English texts for a write that changes nothing (internal/static/i18n/en.yaml):
+// "… not changed", "… has not been changed", "No changes" (Errors.NoChangesFound, e.g. the
+// security policy and the OIDC settings) and "No changes found".
+const NOT_CHANGED_PATTERN = /not (been )?changed|NotChanged|no changes|NoChangesFound/i;
+
 /** Retry helpers for the task steps that call an instance's Zitadel APIs. */
 export class ZitadelTaskSteps {
 	/** Zitadel rejects writing a policy that equals the stored one — that is a success here. */
 	static isNotChangedError(err: unknown) {
-		return err instanceof ZitadelApiError && /not (been )?changed|NotChanged/i.test(err.message);
+		return err instanceof ZitadelApiError && NOT_CHANGED_PATTERN.test(err.message);
 	}
 
 	static isStatus(err: unknown, status: number) {
@@ -45,8 +52,9 @@ export class ZitadelTaskSteps {
 	}
 
 	/**
-	 * Run `fn`, retrying transient failures (404 and 5xx while the instance becomes addressable).
-	 * "Not changed" counts as success; 400/401/403 fail at once.
+	 * Run `fn`, retrying transient failures (timeouts, 404 and 5xx while the instance becomes
+	 * addressable) for up to {@link RETRY_WINDOW_MS}. "Not changed" counts as success;
+	 * 400/401/403 fail at once.
 	 */
 	static async withRetries(
 		label: string,
@@ -54,6 +62,7 @@ export class ZitadelTaskSteps {
 		isPaused: PausedRef,
 		fn: () => Promise<void>,
 	): Promise<TaskHandler.StepBasedTaskReturn> {
+		const deadline = Date.now() + RETRY_WINDOW_MS;
 		for (let attempt = 1; ; attempt++) {
 			if (isPaused.getV()) {
 				return { success: true, paused: true };
@@ -69,16 +78,17 @@ export class ZitadelTaskSteps {
 				}
 
 				const permanent = err instanceof ZitadelApiError && PERMANENT_STATUSES.includes(err.status);
-				if (permanent || attempt >= RETRY_ATTEMPTS) {
-					logger.error(`${label} failed: ${ZitadelTaskSteps.describeError(err)}`);
+				if (permanent || Date.now() + RETRY_DELAY_MS >= deadline) {
+					const suffix = permanent ? "" : ` (gave up after ${attempt} attempts)`;
+					logger.error(`${label} failed${suffix}: ${ZitadelTaskSteps.describeError(err)}`);
 					return {
 						success: false,
-						message: `${label} failed: ${ZitadelTaskSteps.describeError(err)}`,
+						message: `${label} failed${suffix}: ${ZitadelTaskSteps.describeError(err)}`,
 					};
 				}
 
 				logger.warn(
-					`${label} failed (attempt ${attempt}/${RETRY_ATTEMPTS}): ${ZitadelTaskSteps.describeError(err)} — retrying.`,
+					`${label} failed (attempt ${attempt}): ${ZitadelTaskSteps.describeError(err)} — retrying.`,
 				);
 				await Bun.sleep(RETRY_DELAY_MS);
 			}

@@ -7,6 +7,7 @@ import { Audit } from "../../../../../utils/audit";
 import { ConfigHandler } from "../../../../../utils/config";
 import { Logger } from "../../../../../utils/logger";
 import { ZitadelClient } from "../../../../../zitadel/client";
+import { InitialAdmin } from "../../../../../zitadel/initialAdmin";
 import { InstanceTemplates } from "../../../../../zitadel/templates";
 import { APIResponse } from "../../../../utils/api-res";
 import { AuthHandler } from "../../../../utils/authHandler";
@@ -95,10 +96,14 @@ router.post(
 		const authContext = AuthHandler.AuthContext.getAsSession(c);
 		const { template, templateOptions, ...body } = c.req.valid("json");
 
+		// No owner given: a generated one-time initial admin, whose password is returned once.
+		const generated = body.human || body.machine ? null : InitialAdmin.generate(body.defaultLanguage);
+
 		let result: Awaited<ReturnType<typeof ZitadelClient.createInstance>>;
 		try {
 			result = await ZitadelClient.createInstance({
 				...body,
+				human: generated?.owner ?? body.human,
 				firstOrgName: InstanceTemplates.SYSTEM_ORG_NAME,
 			});
 		} catch (err) {
@@ -165,6 +170,9 @@ router.post(
 			instanceId: result.instanceId,
 			pat: result.pat,
 			machineKey: result.machineKey,
+			initialAdmin: generated
+				? { userName: generated.owner.userName, password: generated.password }
+				: null,
 			templateSaved,
 			provisioningTaskId,
 			brandingTaskId,

@@ -152,6 +152,10 @@ export const zPostInstancesResponse = z.object({
         instanceId: z.string(),
         pat: z.string().optional(),
         machineKey: z.string().optional(),
+        initialAdmin: z.object({
+            userName: z.string(),
+            password: z.string()
+        }).nullable(),
         templateSaved: z.boolean(),
         provisioningTaskId: z.number().nullable(),
         brandingTaskId: z.number().nullable()
@@ -536,6 +540,7 @@ export const zGetInstanceTemplatesResponse = z.object({
     message: z.literal('Instance templates retrieved successfully'),
     data: z.object({
         systemOrgName: z.string(),
+        initialAdminUserName: z.string(),
         templates: z.array(z.object({
             id: z.enum([
                 'private',

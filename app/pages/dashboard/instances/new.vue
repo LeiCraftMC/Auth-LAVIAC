@@ -31,6 +31,9 @@ const templates = await useAPIAsyncData<InstanceTemplates | null>(
 
 const templateList = computed(() => templates.data.value?.templates ?? []);
 const systemOrgName = computed(() => templates.data.value?.systemOrgName ?? "SYSTEM");
+const initialAdminUserName = computed(
+	() => templates.data.value?.initialAdminUserName ?? "initial-admin",
+);
 
 // The API's rule for the home org domain (TemplateData.Options), from the generated schema.
 const homeOrgDomainSchema = zPostInstancesBody.shape.templateOptions.unwrap().unwrap()
@@ -47,8 +50,8 @@ const schema = z.object({
 	homeOrgName: z.string().optional(),
 	homeOrgDomain: z.string().optional(),
 	allowOrgRegistration: z.boolean(),
-	ownerType: z.enum(["human", "machine"]),
-	userName: z.string("Username is required").trim().min(1, "Username is required"),
+	ownerType: z.enum(["generated", "human", "machine"]),
+	userName: z.string().optional(),
 	email: z.string().optional(),
 	firstName: z.string().optional(),
 	lastName: z.string().optional(),
@@ -73,7 +76,7 @@ const state = reactive<Schema>({
 	homeOrgName: "",
 	homeOrgDomain: "",
 	allowOrgRegistration: false,
-	ownerType: "human",
+	ownerType: "generated",
 	userName: "",
 	email: "",
 	firstName: "",
@@ -89,15 +92,9 @@ const selectedTemplate = computed(
 	() => templateList.value.find((template) => template.id === state.template) ?? null,
 );
 
-const initialAdminNotice = computed(() =>
-	[
-		`It is created in the ${systemOrgName.value} org, which holds Zitadel's own project and is not meant for users.`,
-		"Use it to set up the instance, then create admin accounts in your home org, give them IAM owner rights and remove or deactivate this one.",
-		state.ownerType === "human" &&
-			`Signing in to the ${systemOrgName.value} org requires MFA, set up at the first sign-in.`,
-	]
-		.filter(Boolean)
-		.join(" "),
+const initialAdminNotice = computed(
+	() =>
+		`It is created in the ${systemOrgName.value} org, which holds Zitadel's own project and is not meant for users. Use it to set up the instance, then create admin accounts in your home org, give them IAM owner rights and remove or deactivate this one.`,
 );
 
 // The baseline password policy (server/lib/zitadel/templates.ts) asks for 12 characters.
@@ -127,6 +124,10 @@ function validate(form: Partial<Schema>): FormError[] {
 		}
 	}
 
+	if (form.ownerType !== "generated" && !form.userName?.trim()) {
+		errors.push({ name: "userName", message: "Username is required" });
+	}
+
 	if (form.ownerType === "human") {
 		if (!z.email().safeParse(form.email ?? "").success) {
 			errors.push({ name: "email", message: "A valid email is required" });
@@ -142,14 +143,19 @@ function validate(form: Partial<Schema>): FormError[] {
 				message: `At least ${MIN_PASSWORD_LENGTH} characters`,
 			});
 		}
-	} else if (!form.machineName?.trim()) {
+	} else if (form.ownerType === "machine" && !form.machineName?.trim()) {
 		errors.push({ name: "machineName", message: "Name is required" });
 	}
 	return errors;
 }
 
 const ownerTypes = [
-	{ label: "Human user", value: "human", description: "Signs in with a password" },
+	{
+		label: "Generated (recommended)",
+		value: "generated",
+		description: "A one-time human admin; the password is shown once",
+	},
+	{ label: "Human user", value: "human", description: "Enter the admin's details" },
 	{ label: "Machine user", value: "machine", description: "Automation via token or key" },
 ];
 
@@ -170,6 +176,7 @@ const languages = [
 
 const creating = ref(false);
 const created = ref<CreatedInstance | null>(null);
+const showPassword = ref(false);
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
 	const form = event.data;
@@ -189,9 +196,10 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 		},
 	};
 
+	// "generated": neither `human` nor `machine` — LAVIAC creates the initial admin.
 	if (form.ownerType === "human") {
 		body.human = {
-			userName: form.userName,
+			userName: form.userName ?? "",
 			email: { email: form.email ?? "", isEmailVerified: true },
 			profile: {
 				firstName: form.firstName ?? "",
@@ -203,9 +211,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 				passwordChangeRequired: form.passwordChangeRequired,
 			},
 		};
-	} else {
+	} else if (form.ownerType === "machine") {
 		body.machine = {
-			userName: form.userName,
+			userName: form.userName ?? "",
 			name: form.machineName ?? "",
 			personalAccessToken: form.createPat ? {} : undefined,
 			machineKey: form.createMachineKey ? { type: "KEY_TYPE_JSON" } : undefined,
@@ -256,7 +264,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 	}
 
 	// Owner credentials are returned exactly once — show them before leaving the page.
-	if (result.data.pat || result.data.machineKey) {
+	if (result.data.initialAdmin || result.data.pat || result.data.machineKey) {
 		created.value = result.data;
 		return;
 	}
@@ -292,6 +300,7 @@ function downloadMachineKey() {
 async function onCredentialsDialogClose() {
 	const instanceId = created.value?.instanceId;
 	created.value = null;
+	showPassword.value = false;
 	if (instanceId) await navigateTo(`/dashboard/instances/${instanceId}/template`);
 }
 
@@ -451,22 +460,24 @@ const rowUi = { root: "w-full sm:w-auto", container: "w-full sm:w-auto" };
 						/>
 
 						<div class="divide-y divide-slate-800">
-							<UFormField
-								name="ownerType"
-								label="Owner type"
-								:class="rowClass"
-								:ui="rowUi"
-							>
+							<UFormField name="ownerType" label="Account" class="pb-4">
 								<URadioGroup
 									v-model="state.ownerType"
 									:items="ownerTypes"
-									orientation="horizontal"
 									variant="card"
-									class="w-full sm:w-80"
+									:ui="{ fieldset: 'mt-2 grid gap-3 sm:grid-cols-3' }"
 								/>
 							</UFormField>
 
+							<p v-if="state.ownerType === 'generated'" class="py-4 text-sm text-slate-400">
+								LAVIAC creates the user
+								<span class="font-mono text-slate-200">{{ initialAdminUserName }}</span>
+								with a random password and no real email address. The password is shown once after
+								creation and doesn't have to be changed at the first sign-in.
+							</p>
+
 							<UFormField
+								v-else
 								name="userName"
 								label="Username"
 								required
@@ -516,7 +527,7 @@ const rowUi = { root: "w-full sm:w-auto", container: "w-full sm:w-auto" };
 								</UFormField>
 							</template>
 
-							<template v-else>
+							<template v-else-if="state.ownerType === 'machine'">
 								<UFormField name="machineName" label="Name" required :class="rowClass" :ui="rowUi">
 									<UInput v-model="state.machineName" placeholder="Provisioning" class="w-full sm:w-80" />
 								</UFormField>
@@ -581,6 +592,57 @@ const rowUi = { root: "w-full sm:w-auto", container: "w-full sm:w-auto" };
 							These credentials are only shown once. Store them somewhere safe.
 						</p>
 					</div>
+
+					<template v-if="created?.initialAdmin">
+						<UFormField label="Username" description="Sign in to the instance's Console with these.">
+							<UInput
+								:model-value="created.initialAdmin.userName"
+								readonly
+								class="w-full font-mono"
+								:ui="{ trailing: 'pe-1' }"
+							>
+								<template #trailing>
+									<UButton
+										color="neutral"
+										variant="link"
+										size="sm"
+										icon="i-lucide-copy"
+										aria-label="Copy username"
+										@click="copy(created?.initialAdmin?.userName)"
+									/>
+								</template>
+							</UInput>
+						</UFormField>
+
+						<UFormField label="Password">
+							<UInput
+								:model-value="created.initialAdmin.password"
+								readonly
+								:type="showPassword ? 'text' : 'password'"
+								class="w-full font-mono"
+								:ui="{ trailing: 'pe-1' }"
+							>
+								<template #trailing>
+									<UButton
+										color="neutral"
+										variant="link"
+										size="sm"
+										:icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+										:aria-label="showPassword ? 'Hide password' : 'Show password'"
+										@click="showPassword = !showPassword"
+									/>
+									<UButton
+										color="neutral"
+										variant="link"
+										size="sm"
+										icon="i-lucide-copy"
+										aria-label="Copy password"
+										@click="copy(created?.initialAdmin?.password)"
+									/>
+								</template>
+							</UInput>
+						</UFormField>
+					</template>
 
 					<UFormField v-if="created?.pat" label="Personal access token">
 						<UInput :model-value="created.pat" readonly type="password" class="w-full" :ui="{ trailing: 'pe-1' }">

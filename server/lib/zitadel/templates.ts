@@ -176,13 +176,17 @@ export namespace InstanceTemplates {
 			refreshTokenIdleExpiration: "2592000s",
 			refreshTokenExpiration: "7776000s",
 		},
-		/** The SYSTEM org: no sign-up, no external IdPs, MFA for everyone, plain login names. */
+		/**
+		 * The SYSTEM org only holds the one-time initial admin, which hands over to an admin in the
+		 * home org: nobody can join it (no sign-up, no external IdPs); MFA and domain discovery are
+		 * as in a plain org.
+		 */
 		systemOrgLogin: {
 			allowRegister: false,
 			allowExternalIdp: false,
-			forceMfa: true,
+			forceMfa: false,
 			forceMfaLocalOnly: false,
-			allowDomainDiscovery: false,
+			allowDomainDiscovery: true,
 		},
 	} as const satisfies {
 		loginPolicy: Omit<ZitadelLoginPolicy, keyof LoginPolicyChoices>;
@@ -435,7 +439,7 @@ export namespace InstanceTemplates {
 				{
 					label: "SYSTEM org",
 					value:
-						"First org: the ZITADEL project, the Console and the initial admin. Locked down, not for users.",
+						"First org: the ZITADEL project, the Console and the one-time initial admin. Nobody can join it.",
 					source: "baseline",
 				},
 				...(def.homeOrg && plan.homeOrg

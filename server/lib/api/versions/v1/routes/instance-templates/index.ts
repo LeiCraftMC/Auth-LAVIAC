@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { InitialAdmin } from "../../../../../zitadel/initialAdmin";
 import { InstanceTemplates } from "../../../../../zitadel/templates";
 import { APIResponse } from "../../../../utils/api-res";
 import { AuthHandler } from "../../../../utils/authHandler";
@@ -42,6 +43,7 @@ router.get(
 	async (c) => {
 		return APIResponse.success(c, "Instance templates retrieved successfully", {
 			systemOrgName: InstanceTemplates.SYSTEM_ORG_NAME,
+			initialAdminUserName: InitialAdmin.USERNAME,
 			templates: InstanceTemplates.list().map((template) => ({
 				...template,
 				sections: InstanceTemplates.describe(template.id, null),

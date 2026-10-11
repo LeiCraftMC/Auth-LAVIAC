@@ -5,6 +5,8 @@ export namespace InstanceTemplatesModel.GetAll {
 	export const Response = z.object({
 		/** Name of the first org every template creates. */
 		systemOrgName: z.string(),
+		/** Username of the generated initial admin (created when no owner is given). */
+		initialAdminUserName: z.string(),
 		templates: z.array(
 			TemplateData.Template.extend({
 				/** The settings the template applies; values chosen at creation are marked. */
