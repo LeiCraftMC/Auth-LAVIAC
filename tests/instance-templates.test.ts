@@ -9,6 +9,8 @@ import { ZitadelTaskSteps } from "../server/lib/tasks/zitadelSteps";
 import { ZitadelApiError, ZitadelClient } from "../server/lib/zitadel/client";
 import { InitialAdmin } from "../server/lib/zitadel/initialAdmin";
 import { InstanceTemplates } from "../server/lib/zitadel/templates";
+import type { ZitadelExecution, ZitadelTarget } from "../server/lib/zitadel/types";
+import { ZitadelUsernameClaim } from "../server/lib/zitadel/usernameClaim";
 import { makeAPIRequest } from "./helpers/api";
 import { seedSession } from "./helpers/seed";
 
@@ -143,6 +145,13 @@ describe("Instance templates", () => {
 		}).flatMap((section) => section.rows);
 		expect(chosen.find((row) => row.label === "Public org")?.value).toBe("Users");
 		expect(chosen.find((row) => row.label === "Org sign-up page")?.value).toBe("Open");
+	});
+
+	test("every template shows the username claim", () => {
+		for (const id of InstanceTemplates.IDS) {
+			const rows = InstanceTemplates.describe(id, null).flatMap((section) => section.rows);
+			expect(rows.find((row) => row.label === "username")?.value).toContain("plain username");
+		}
 	});
 });
 
@@ -367,6 +376,9 @@ describe("Provisioning task", () => {
 			/** Org ids `findOrgById` finds (default: every id). */
 			existingOrgIds?: string[];
 			failAddingDomain?: boolean;
+			/** The instance's Actions v2 targets and executions (default: none). */
+			targets?: ZitadelTarget[];
+			executions?: ZitadelExecution[];
 		} = {},
 	) {
 		const calls: { name: string; args: unknown[] }[] = [];
@@ -417,6 +429,18 @@ describe("Provisioning task", () => {
 				throw new ZitadelApiError(409, "Errors.Org.LoginPolicy.AlreadyExists");
 			}
 		});
+		mock(
+			"listTargets",
+			record("listTargets", () => opts.targets ?? []),
+		);
+		mock(
+			"createTarget",
+			record("createTarget", () => "target-1"),
+		);
+		mock(
+			"listExecutions",
+			record("listExecutions", () => opts.executions ?? []),
+		);
 		mock("resetOrgDomainPolicy", async (...args: any[]) => {
 			calls.push({ name: "resetOrgDomainPolicy", args });
 			throw new ZitadelApiError(404, "Errors.Org.DomainPolicy.NotFound");
@@ -435,6 +459,8 @@ describe("Provisioning task", () => {
 			"updateDefaultLoginPolicy",
 			"updateDefaultDomainPolicy",
 			"setDefaultOrg",
+			"updateTarget",
+			"setExecution",
 		] as const) {
 			mock(name, record(name));
 		}
@@ -602,5 +628,80 @@ describe("Provisioning task", () => {
 		mockZitadel();
 		const result = await run("inst-unknown");
 		expect(result).toMatchObject({ success: false });
+	});
+
+	test("adds the username claim target after the instance's own preuserinfo targets", async () => {
+		seedSetup("inst-claim", "minimal", {});
+		const { index, argsOf } = mockZitadel({
+			executions: [
+				{ condition: { function: { name: "preuserinfo" } }, targets: ["own-target"] },
+				{ condition: { function: { name: "preaccesstoken" } }, targets: ["other"] },
+			],
+		});
+
+		const result = await run("inst-claim");
+		expect(result).toMatchObject({ success: true });
+		expect(argsOf("createTarget")[1]).toEqual({
+			name: ZitadelUsernameClaim.TARGET_NAME,
+			endpoint: "http://localhost:12191/api/v1/hooks/username-claim/inst-claim",
+			timeout: "10s",
+			restCall: { interruptOnError: false },
+		});
+		expect(argsOf("setExecution").slice(1)).toEqual([
+			{ function: { name: "preuserinfo" } },
+			["own-target", "target-1"],
+		]);
+		expect(index("setExecution")).toBeLessThan(index("setDefaultOrg"));
+	});
+
+	test("a second run leaves an up-to-date username claim alone", async () => {
+		seedSetup("inst-claim-again", "minimal", {});
+		const { index } = mockZitadel({
+			targets: [
+				{
+					id: "target-9",
+					name: ZitadelUsernameClaim.TARGET_NAME,
+					endpoint: "http://localhost:12191/api/v1/hooks/username-claim/inst-claim-again",
+					timeout: "10s",
+					restCall: {},
+				},
+			],
+			executions: [{ condition: { function: { name: "preuserinfo" } }, targets: ["target-9"] }],
+		});
+
+		const result = await run("inst-claim-again");
+		expect(result).toMatchObject({ success: true });
+		expect(index("createTarget")).toBe(-1);
+		expect(index("updateTarget")).toBe(-1);
+		expect(index("setExecution")).toBe(-1);
+	});
+
+	test("points a username claim target with another endpoint at the webhook", async () => {
+		seedSetup("inst-claim-moved", "minimal", {});
+		const { argsOf, index } = mockZitadel({
+			targets: [
+				{
+					id: "target-9",
+					name: ZitadelUsernameClaim.TARGET_NAME,
+					endpoint: "https://old.example.com/hook",
+					timeout: "10s",
+					restCall: { interruptOnError: true },
+				},
+			],
+			executions: [{ condition: { function: { name: "preuserinfo" } }, targets: ["target-9"] }],
+		});
+
+		const result = await run("inst-claim-moved");
+		expect(result).toMatchObject({ success: true });
+		expect(argsOf("updateTarget").slice(1)).toEqual([
+			"target-9",
+			{
+				name: ZitadelUsernameClaim.TARGET_NAME,
+				endpoint: "http://localhost:12191/api/v1/hooks/username-claim/inst-claim-moved",
+				timeout: "10s",
+				restCall: { interruptOnError: false },
+			},
+		]);
+		expect(index("setExecution")).toBe(-1);
 	});
 });

@@ -5,6 +5,7 @@ import { Audit } from "../utils/audit";
 import { ZitadelApiError, ZitadelClient } from "../zitadel/client";
 import { InstanceTemplates } from "../zitadel/templates";
 import type { ZitadelCustomLoginPolicy } from "../zitadel/types";
+import { ZitadelUsernameClaim } from "../zitadel/usernameClaim";
 import { ZitadelTaskSteps } from "./zitadelSteps";
 
 export type ProvisionInstanceArgs = {
@@ -90,8 +91,9 @@ function requireState(state: ProvisionInstanceState) {
 
 /**
  * Applies the instance's template (server/lib/zitadel/templates.ts): locks down the SYSTEM org,
- * writes the security baseline and the template's instance defaults, creates the home org and
- * makes it the default org. The template and its options come from the `instance_setups` row.
+ * writes the security baseline and the template's instance defaults, adds the username claim
+ * (server/lib/zitadel/usernameClaim.ts), creates the home org and makes it the default org. The
+ * template and its options come from the `instance_setups` row.
  *
  * Every write is idempotent: a LAVIAC restart runs the task again from the first step (a step-based
  * task only keeps its state when paused), and the dashboard can re-apply it.
@@ -196,6 +198,29 @@ export const ProvisionInstanceTask = new TaskHandler.StepBasedTaskFn(
 			[
 				"Default domain policy",
 				() => ZitadelClient.updateDefaultDomainPolicy(host, instance.domainPolicy),
+			],
+		]);
+	})
+	.addStep("Add the username claim", async (args, logger, state, isPaused) => {
+		const { host } = requireState(state);
+		const endpoint = ZitadelUsernameClaim.endpoint(args.instanceId);
+		if (!endpoint) {
+			logger.info("The username claim is off (LAVIAC_ZITADEL_USERNAME_CLAIM=false).");
+			return { success: true };
+		}
+
+		let targetId = "";
+		return runActions(logger, isPaused, [
+			[
+				"Username claim: target",
+				async () => {
+					targetId = await ZitadelUsernameClaim.upsertTarget(host, endpoint);
+					logger.info(`Username claim target ${targetId} calls ${endpoint}.`);
+				},
+			],
+			[
+				`Username claim: ${ZitadelUsernameClaim.FUNCTION_NAME} execution`,
+				() => ZitadelUsernameClaim.attach(host, targetId),
 			],
 		]);
 	})

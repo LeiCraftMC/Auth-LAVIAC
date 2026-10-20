@@ -6,6 +6,7 @@ import { authMiddlewareV1 } from "./middleware/auth";
 import { router as adminRouter } from "./routes/admin";
 import { router as authRouter } from "./routes/auth";
 import { router as domainsRouter } from "./routes/domains";
+import { router as hooksRouter } from "./routes/hooks";
 import { router as instanceTemplatesRouter } from "./routes/instance-templates";
 import { router as instancesRouter } from "./routes/instances";
 
@@ -192,6 +193,7 @@ router.route("/", instancesRouter);
 router.route("/", instanceTemplatesRouter);
 router.route("/", domainsRouter);
 router.route("/", adminRouter);
+router.route("/", hooksRouter);
 
 export class APIv1Router extends APIVersionRouter {
 	constructor() {

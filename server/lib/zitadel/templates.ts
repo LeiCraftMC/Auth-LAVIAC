@@ -5,7 +5,8 @@
  * Every instance is created with a first org named `SYSTEM`: Zitadel puts the ZITADEL project,
  * the Console app and the initial admin there. The template then decides which org becomes the
  * default org (the "home org": company, public or catch-all) and how sign-in works. The security
- * baseline ({@link InstanceTemplates.BASELINE}) is the same for every template.
+ * baseline ({@link InstanceTemplates.BASELINE}) is the same for every template, and so is the
+ * `username` claim (./usernameClaim.ts, unless `LAVIAC_ZITADEL_USERNAME_CLAIM=false`).
  *
  * {@link InstanceTemplates.resolve} turns a template and its creation options into a
  * {@link InstanceTemplates.Plan}: the exact Zitadel payloads the `provisionInstance` task writes
@@ -29,6 +30,7 @@ import type {
 	ZitadelRestrictions,
 	ZitadelSecurityPolicy,
 } from "./types";
+import { ZitadelUsernameClaim } from "./usernameClaim";
 
 export namespace InstanceTemplates {
 	export const IDS = ["private", "public-b2b-b2c", "public-b2c", "public-b2b", "minimal"] as const;
@@ -578,6 +580,22 @@ export namespace InstanceTemplates {
 				{
 					label: "SMTP sender must match an instance domain",
 					value: plan.instance.domainPolicy.smtpSenderAddressMatchesInstanceDomain ? "Yes" : "No",
+					source: "baseline",
+				},
+			],
+		});
+
+		sections.push({
+			id: "claims",
+			title: "Token claims",
+			description:
+				"Claims LAVIAC's webhook adds to the ID token and userinfo of every app (an Actions v2 target on preuserinfo).",
+			rows: [
+				{
+					label: "username",
+					value: ZitadelUsernameClaim.enabled()
+						? "The plain username (alice, without @<org domain>), when the profile scope is requested"
+						: "Off (LAVIAC_ZITADEL_USERNAME_CLAIM=false)",
 					source: "baseline",
 				},
 			],

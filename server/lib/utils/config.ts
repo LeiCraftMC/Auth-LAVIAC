@@ -144,6 +144,12 @@ export class ConfigHandler {
 		// Apply the LAVIAC default branding (label policy + font) to every newly created instance.
 		// Needs the system user to hold IAM_OWNER via a `System` membership (see example.env).
 		ZITADEL_APPLY_DEFAULT_BRANDING: CS.boolean().default(true),
+		// Give every newly provisioned instance the `username` claim (the plain username, without
+		// `@<org domain>`), answered by LAVIAC's webhook (see server/lib/zitadel/usernameClaim.ts).
+		ZITADEL_USERNAME_CLAIM: CS.boolean().default(true),
+		// The URL Zitadel calls for it; the instance id is appended.
+		// Default: `${LAVIAC_APP_URL}/api/v1/hooks/username-claim`.
+		ZITADEL_USERNAME_CLAIM_WEBHOOK_URL: CS.string().optional(),
 
 		OIDC_CLIENT_ID: CS.string().optional(),
 		OIDC_CLIENT_SECRET: CS.string().optional(),

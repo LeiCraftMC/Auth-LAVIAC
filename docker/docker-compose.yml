@@ -21,6 +21,9 @@ services:
       LAVIAC_ZITADEL_SYSTEM_API_URL: https://auth.leicraftmc.de
       LAVIAC_ZITADEL_SYSTEM_USER_ID: laviac-system-user
       LAVIAC_ZITADEL_APPLY_DEFAULT_BRANDING: true
+      LAVIAC_ZITADEL_USERNAME_CLAIM: true
+      # Default: ${LAVIAC_APP_URL}/api/v1/hooks/username-claim
+      # LAVIAC_ZITADEL_USERNAME_CLAIM_WEBHOOK_URL: https://laviac.leicraftmc.de/api/v1/hooks/username-claim
 
       LAVIAC_OIDC_CLIENT_ID: laviac
       LAVIAC_OIDC_CLIENT_SECRET: ""

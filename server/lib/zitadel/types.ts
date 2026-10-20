@@ -259,3 +259,58 @@ export interface ZitadelAddOrganizationResponse {
 export interface ZitadelGetDefaultOrgResponse {
 	org?: { id: string; name?: string };
 }
+
+// --- Actions v2 (v2 Action API) ----------------------------------------------------------------
+
+/** Zitadel uses the answer of a REST call target; it only stops the flow on `interruptOnError`. */
+export interface ZitadelRestCall {
+	interruptOnError?: boolean;
+}
+
+/** Body of `POST /v2/actions/targets` and `POST /v2/actions/targets/{id}`. */
+export interface ZitadelTargetRequest {
+	name: string;
+	endpoint: string;
+	/** Duration, e.g. `"10s"`. */
+	timeout: string;
+	restCall: ZitadelRestCall;
+}
+
+export interface ZitadelTarget {
+	id: string;
+	name: string;
+	endpoint: string;
+	timeout?: string;
+	restCall?: ZitadelRestCall;
+	restWebhook?: ZitadelRestCall;
+	restAsync?: Record<string, never>;
+	/** The HMAC key Zitadel signs every call with (`ZITADEL-Signature`). */
+	signingKey?: string;
+}
+
+export interface ZitadelListTargetsResponse {
+	targets?: ZitadelTarget[];
+}
+
+export interface ZitadelCreateTargetResponse {
+	id: string;
+	signingKey?: string;
+}
+
+/** What an execution runs on; LAVIAC only uses functions (e.g. `preuserinfo`). */
+export interface ZitadelExecutionCondition {
+	function?: { name: string };
+	request?: unknown;
+	response?: unknown;
+	event?: unknown;
+}
+
+export interface ZitadelExecution {
+	condition: ZitadelExecutionCondition;
+	/** Target ids, called in this order. */
+	targets?: string[];
+}
+
+export interface ZitadelListExecutionsResponse {
+	executions?: ZitadelExecution[];
+}

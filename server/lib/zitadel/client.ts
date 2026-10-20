@@ -20,10 +20,13 @@ import type {
 	ZitadelAddOrganizationResponse,
 	ZitadelCreateInstanceRequest,
 	ZitadelCreateInstanceResponse,
+	ZitadelCreateTargetResponse,
 	ZitadelCustomLoginPolicy,
 	ZitadelDeleteInstanceResponse,
 	ZitadelDomain,
 	ZitadelDomainPolicy,
+	ZitadelExecution,
+	ZitadelExecutionCondition,
 	ZitadelExistsDomainResponse,
 	ZitadelGetDefaultOrgResponse,
 	ZitadelGetInstanceResponse,
@@ -32,9 +35,11 @@ import type {
 	ZitadelInstanceSortingColumn,
 	ZitadelLabelPolicy,
 	ZitadelListDomainsResponse,
+	ZitadelListExecutionsResponse,
 	ZitadelListInstancesResponse,
 	ZitadelListOrganizationsResponse,
 	ZitadelListResponse,
+	ZitadelListTargetsResponse,
 	ZitadelLockoutPolicy,
 	ZitadelLoginPolicy,
 	ZitadelOIDCSettings,
@@ -43,6 +48,8 @@ import type {
 	ZitadelRestrictions,
 	ZitadelSecurityPolicy,
 	ZitadelSetLimitsRequest,
+	ZitadelTarget,
+	ZitadelTargetRequest,
 	ZitadelUpdateInstanceResponse,
 	ZitadelUpdateLabelPolicyRequest,
 } from "./types";
@@ -498,6 +505,61 @@ export class ZitadelClient {
 			`/management/v1/orgs/me/domains/${encodeURIComponent(domain)}/_set_primary`,
 			{ instanceHost, orgId, body: {} },
 		);
+	}
+
+	// --- Actions v2 (instance-scoped) ------------------------------------------
+
+	/** The instance's targets (first page: 100, plenty for the one LAVIAC adds). */
+	static async listTargets(instanceHost: string): Promise<ZitadelTarget[]> {
+		const res = await ZitadelClient.request<ZitadelListTargetsResponse>(
+			"POST",
+			"/v2/actions/targets/search",
+			{ instanceHost, body: {} },
+		);
+		return res.targets ?? [];
+	}
+
+	/** Create a target. Returns its id. */
+	static async createTarget(instanceHost: string, body: ZitadelTargetRequest): Promise<string> {
+		const res = await ZitadelClient.request<ZitadelCreateTargetResponse>(
+			"POST",
+			"/v2/actions/targets",
+			{ instanceHost, body },
+		);
+		return res.id;
+	}
+
+	/** Update a target; its signing key is kept. */
+	static async updateTarget(
+		instanceHost: string,
+		id: string,
+		body: ZitadelTargetRequest,
+	): Promise<void> {
+		await ZitadelClient.request("POST", `/v2/actions/targets/${encodeURIComponent(id)}`, {
+			instanceHost,
+			body,
+		});
+	}
+
+	static async listExecutions(instanceHost: string): Promise<ZitadelExecution[]> {
+		const res = await ZitadelClient.request<ZitadelListExecutionsResponse>(
+			"POST",
+			"/v2/actions/executions/search",
+			{ instanceHost, body: {} },
+		);
+		return res.executions ?? [];
+	}
+
+	/** Replace the targets of the execution for `condition`; an empty list removes it. */
+	static async setExecution(
+		instanceHost: string,
+		condition: ZitadelExecutionCondition,
+		targets: string[],
+	): Promise<void> {
+		await ZitadelClient.request("PUT", "/v2/actions/executions", {
+			instanceHost,
+			body: { condition, targets },
+		});
 	}
 
 	// --- Usage counts (instance-scoped) ----------------------------------------
