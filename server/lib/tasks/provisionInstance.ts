@@ -2,10 +2,10 @@ import { TaskHandler } from "@cleverjs/utils";
 import { eq } from "drizzle-orm";
 import { DB } from "../db";
 import { Audit } from "../utils/audit";
+import { ZitadelClaims } from "../zitadel/claims";
 import { ZitadelApiError, ZitadelClient } from "../zitadel/client";
 import { InstanceTemplates } from "../zitadel/templates";
 import type { ZitadelCustomLoginPolicy } from "../zitadel/types";
-import { ZitadelUsernameClaim } from "../zitadel/usernameClaim";
 import { ZitadelTaskSteps } from "./zitadelSteps";
 
 export type ProvisionInstanceArgs = {
@@ -91,8 +91,8 @@ function requireState(state: ProvisionInstanceState) {
 
 /**
  * Applies the instance's template (server/lib/zitadel/templates.ts): locks down the SYSTEM org,
- * writes the security baseline and the template's instance defaults, adds the username claim
- * (server/lib/zitadel/usernameClaim.ts), creates the home org and makes it the default org. The
+ * writes the security baseline and the template's instance defaults, adds the claims webhook
+ * (server/lib/zitadel/claims.ts), creates the home org and makes it the default org. The
  * template and its options come from the `instance_setups` row.
  *
  * Every write is idempotent: a LAVIAC restart runs the task again from the first step (a step-based
@@ -201,27 +201,24 @@ export const ProvisionInstanceTask = new TaskHandler.StepBasedTaskFn(
 			],
 		]);
 	})
-	.addStep("Add the username claim", async (args, logger, state, isPaused) => {
+	.addStep("Add the claims webhook", async (args, logger, state, isPaused) => {
 		const { host } = requireState(state);
-		const endpoint = ZitadelUsernameClaim.endpoint(args.instanceId);
+		const endpoint = ZitadelClaims.endpoint(args.instanceId);
 		if (!endpoint) {
-			logger.info("The username claim is off (LAVIAC_ZITADEL_USERNAME_CLAIM=false).");
+			logger.info("The claims webhook is off (LAVIAC_ZITADEL_CLAIMS=false).");
 			return { success: true };
 		}
 
 		let targetId = "";
 		return runActions(logger, isPaused, [
 			[
-				"Username claim: target",
+				"Claims: target",
 				async () => {
-					targetId = await ZitadelUsernameClaim.upsertTarget(host, endpoint);
-					logger.info(`Username claim target ${targetId} calls ${endpoint}.`);
+					targetId = await ZitadelClaims.upsertTarget(host, endpoint);
+					logger.info(`Claims target ${targetId} calls ${endpoint}.`);
 				},
 			],
-			[
-				`Username claim: ${ZitadelUsernameClaim.FUNCTION_NAME} execution`,
-				() => ZitadelUsernameClaim.attach(host, targetId),
-			],
+			[`Claims: ${ZitadelClaims.FUNCTION_NAME} execution`, () => ZitadelClaims.attach(host, targetId)],
 		]);
 	})
 	.addStep("Create the home org", async (args, logger, state, isPaused) => {

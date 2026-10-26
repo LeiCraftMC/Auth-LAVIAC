@@ -6,7 +6,7 @@
  * the Console app and the initial admin there. The template then decides which org becomes the
  * default org (the "home org": company, public or catch-all) and how sign-in works. The security
  * baseline ({@link InstanceTemplates.BASELINE}) is the same for every template, and so is the
- * `username` claim (./usernameClaim.ts, unless `LAVIAC_ZITADEL_USERNAME_CLAIM=false`).
+ * `username` and `groups` claims (./claims.ts, unless `LAVIAC_ZITADEL_CLAIMS=false`).
  *
  * {@link InstanceTemplates.resolve} turns a template and its creation options into a
  * {@link InstanceTemplates.Plan}: the exact Zitadel payloads the `provisionInstance` task writes
@@ -20,6 +20,8 @@
  *   still serves next to Login V2; `disallowPublicOrgRegistration` closes it.
  * - A locked user stays locked until an admin unlocks it; there is no lockout duration.
  */
+
+import { ZitadelClaims } from "./claims";
 import type {
 	ZitadelCustomLoginPolicy,
 	ZitadelDomainPolicy,
@@ -30,7 +32,6 @@ import type {
 	ZitadelRestrictions,
 	ZitadelSecurityPolicy,
 } from "./types";
-import { ZitadelUsernameClaim } from "./usernameClaim";
 
 export namespace InstanceTemplates {
 	export const IDS = ["private", "public-b2b-b2c", "public-b2c", "public-b2b", "minimal"] as const;
@@ -585,17 +586,25 @@ export namespace InstanceTemplates {
 			],
 		});
 
+		const claimsOff = "Off (LAVIAC_ZITADEL_CLAIMS=false)";
 		sections.push({
 			id: "claims",
 			title: "Token claims",
 			description:
-				"Claims LAVIAC's webhook adds to the ID token and userinfo of every app (an Actions v2 target on preuserinfo).",
+				"Standard claims LAVIAC's webhook adds to the ID token and userinfo of every app (an Actions v2 target on preuserinfo).",
 			rows: [
 				{
 					label: "username",
-					value: ZitadelUsernameClaim.enabled()
+					value: ZitadelClaims.enabled()
 						? "The plain username (alice, without @<org domain>), when the profile scope is requested"
-						: "Off (LAVIAC_ZITADEL_USERNAME_CLAIM=false)",
+						: claimsOff,
+					source: "baseline",
+				},
+				{
+					label: "groups",
+					value: ZitadelClaims.enabled()
+						? "The user's role keys as a flat list, whenever Zitadel sends the roles"
+						: claimsOff,
 					source: "baseline",
 				},
 			],

@@ -6,11 +6,11 @@ import { DB } from "../server/lib/db";
 import { TaskScheduler } from "../server/lib/tasks";
 import { ProvisionInstanceTask } from "../server/lib/tasks/provisionInstance";
 import { ZitadelTaskSteps } from "../server/lib/tasks/zitadelSteps";
+import { ZitadelClaims } from "../server/lib/zitadel/claims";
 import { ZitadelApiError, ZitadelClient } from "../server/lib/zitadel/client";
 import { InitialAdmin } from "../server/lib/zitadel/initialAdmin";
 import { InstanceTemplates } from "../server/lib/zitadel/templates";
 import type { ZitadelExecution, ZitadelTarget } from "../server/lib/zitadel/types";
-import { ZitadelUsernameClaim } from "../server/lib/zitadel/usernameClaim";
 import { makeAPIRequest } from "./helpers/api";
 import { seedSession } from "./helpers/seed";
 
@@ -147,10 +147,11 @@ describe("Instance templates", () => {
 		expect(chosen.find((row) => row.label === "Org sign-up page")?.value).toBe("Open");
 	});
 
-	test("every template shows the username claim", () => {
+	test("every template shows the claims", () => {
 		for (const id of InstanceTemplates.IDS) {
 			const rows = InstanceTemplates.describe(id, null).flatMap((section) => section.rows);
 			expect(rows.find((row) => row.label === "username")?.value).toContain("plain username");
+			expect(rows.find((row) => row.label === "groups")?.value).toContain("flat list");
 		}
 	});
 });
@@ -630,7 +631,7 @@ describe("Provisioning task", () => {
 		expect(result).toMatchObject({ success: false });
 	});
 
-	test("adds the username claim target after the instance's own preuserinfo targets", async () => {
+	test("adds the claims target after the instance's own preuserinfo targets", async () => {
 		seedSetup("inst-claim", "minimal", {});
 		const { index, argsOf } = mockZitadel({
 			executions: [
@@ -642,8 +643,8 @@ describe("Provisioning task", () => {
 		const result = await run("inst-claim");
 		expect(result).toMatchObject({ success: true });
 		expect(argsOf("createTarget")[1]).toEqual({
-			name: ZitadelUsernameClaim.TARGET_NAME,
-			endpoint: "http://localhost:12191/api/v1/hooks/username-claim/inst-claim",
+			name: ZitadelClaims.TARGET_NAME,
+			endpoint: "http://localhost:12191/api/v1/hooks/claims/inst-claim",
 			timeout: "10s",
 			restCall: { interruptOnError: false },
 		});
@@ -654,14 +655,14 @@ describe("Provisioning task", () => {
 		expect(index("setExecution")).toBeLessThan(index("setDefaultOrg"));
 	});
 
-	test("a second run leaves an up-to-date username claim alone", async () => {
+	test("a second run leaves an up-to-date claims target alone", async () => {
 		seedSetup("inst-claim-again", "minimal", {});
 		const { index } = mockZitadel({
 			targets: [
 				{
 					id: "target-9",
-					name: ZitadelUsernameClaim.TARGET_NAME,
-					endpoint: "http://localhost:12191/api/v1/hooks/username-claim/inst-claim-again",
+					name: ZitadelClaims.TARGET_NAME,
+					endpoint: "http://localhost:12191/api/v1/hooks/claims/inst-claim-again",
 					timeout: "10s",
 					restCall: {},
 				},
@@ -676,13 +677,13 @@ describe("Provisioning task", () => {
 		expect(index("setExecution")).toBe(-1);
 	});
 
-	test("points a username claim target with another endpoint at the webhook", async () => {
+	test("points a claims target with another endpoint at the webhook", async () => {
 		seedSetup("inst-claim-moved", "minimal", {});
 		const { argsOf, index } = mockZitadel({
 			targets: [
 				{
 					id: "target-9",
-					name: ZitadelUsernameClaim.TARGET_NAME,
+					name: ZitadelClaims.TARGET_NAME,
 					endpoint: "https://old.example.com/hook",
 					timeout: "10s",
 					restCall: { interruptOnError: true },
@@ -696,8 +697,8 @@ describe("Provisioning task", () => {
 		expect(argsOf("updateTarget").slice(1)).toEqual([
 			"target-9",
 			{
-				name: ZitadelUsernameClaim.TARGET_NAME,
-				endpoint: "http://localhost:12191/api/v1/hooks/username-claim/inst-claim-moved",
+				name: ZitadelClaims.TARGET_NAME,
+				endpoint: "http://localhost:12191/api/v1/hooks/claims/inst-claim-moved",
 				timeout: "10s",
 				restCall: { interruptOnError: false },
 			},

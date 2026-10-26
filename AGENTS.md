@@ -54,8 +54,10 @@ Style-Guides [docs/01](../../Style-Guides/docs/01-project-structure.md) and
 3. **Zitadel System API auth = system-user JWT.** A self-signed RS256 JWT (RSA keypair registered
    in Zitadel `SystemAPIUsers` runtime settings) is sent directly as `Bearer` to
    `/system/v1/*`. This is the only System API auth method (self-hosted only). The System API
-   base URL (`LAVIAC_ZITADEL_SYSTEM_API_URL`, also the JWT audience) is a SEPARATE setting from
-   the OIDC auth URL (`LAVIAC_ZITADEL_AUTH_URL`). See `server/lib/zitadel/jwt.ts` and
+   base URL (`LAVIAC_ZITADEL_SYSTEM_API_URL`) is a SEPARATE setting from the OIDC auth URL
+   (`LAVIAC_ZITADEL_AUTH_URL`). The JWT audience defaults to the API URL, but Zitadel checks it
+   against its own external URL (ExternalDomain/Port/Secure), so production sets
+   `LAVIAC_ZITADEL_SYSTEM_API_AUDIENCE=https://auth.is-on.net`. See `server/lib/zitadel/jwt.ts` and
    <https://zitadel.com/docs/guides/integrate/zitadel-apis/access-zitadel-system-api>.
    The **instance-scoped** calls (label policy, font upload, org/user counts) reuse that JWT and
    select the instance with the `x-zitadel-instance-host` header; they need the system user to
@@ -79,7 +81,7 @@ Style-Guides [docs/01](../../Style-Guides/docs/01-project-structure.md) and
    generates a human `initial-admin` whose password is returned once), stores the choice in
    `instance_setups` and queues the step-based `provisionInstance` task
    (`server/lib/tasks/provisionInstance.ts`): SYSTEM org
-   lockdown → security baseline + template instance defaults → username claim (item 9) → home
+   lockdown → security baseline + template instance defaults → claims webhook (item 9) → home
    org → default org. Templates
    are code, read-only in the UI (`/dashboard/templates`); `InstanceTemplates.describe()` renders
    the same plan the task writes. Keep the order: the SYSTEM org's own domain policy must exist
@@ -95,17 +97,23 @@ Style-Guides [docs/01](../../Style-Guides/docs/01-project-structure.md) and
    `public/robots.txt` disallows everything and there is no sitemap. The public-site chrome is
    gone: no `layouts/default.vue`, `components/layout/Header.vue` or `Footer.vue`. The auth layout
    and `error.vue` show only the centered `ImgAppLogo`, like the template's onboarding layout.
-9. **Zitadel calls LAVIAC back (webhooks).** Every template gives the instance a `username`
-   claim (the plain username, without `@<org domain>`, when the `profile` scope is requested):
-   the provisioning task adds the Actions v2 target `laviac-username-claim` (REST call, no
+9. **Zitadel calls LAVIAC back (webhooks).** Every template gives the instance standard claims
+   built from Zitadel's own: `username` (the plain username, without `@<org domain>`, when the
+   `profile` scope is requested) and `groups` (the role keys of Zitadel's
+   `urn:zitadel:iam:org:project[:<id>]:roles` claims as a flat list, whenever Zitadel sends
+   roles). The provisioning task adds the Actions v2 target `laviac-claims` (REST call, no
    interrupt on error) and appends it to the `preuserinfo` execution, keeping the instance's own
-   targets there. Zitadel calls `POST /api/v1/hooks/username-claim/:instanceId`
+   targets there. Zitadel calls `POST /api/v1/hooks/claims/:instanceId`
    (`server/lib/api/versions/v1/routes/hooks/`). These routes diverge from the guide: no session,
    they check the `ZITADEL-Signature` HMAC with the target's signing key (read from the instance's
-   target and cached in `server/lib/zitadel/usernameClaim.ts`), answer in Zitadel's format
-   instead of the envelope, and are hidden from the API docs and the generated client. Only
-   instances with an `instance_setups` row are served. `LAVIAC_ZITADEL_USERNAME_CLAIM=false`
-   turns it off; `LAVIAC_ZITADEL_USERNAME_CLAIM_WEBHOOK_URL` overrides the URL Zitadel calls.
+   target and cached in `server/lib/zitadel/claims.ts`), answer in Zitadel's format
+   instead of the envelope, and are hidden from the API docs and the generated client. Every
+   instance of the Zitadel is served (the instance list is cached and refetched at most once a
+   minute for unknown ids), so instances LAVIAC didn't provision can get the target by hand.
+   `LAVIAC_ZITADEL_CLAIMS=false` turns it off; `LAVIAC_ZITADEL_CLAIMS_WEBHOOK_URL` overrides the
+   URL Zitadel calls. It must be public: Zitadel's default deny list refuses localhost and
+   private IPs as target endpoints, and it stays on so instance admins can't reach internal
+   services through targets.
 
 ## Key locations
 
@@ -116,8 +124,8 @@ Style-Guides [docs/01](../../Style-Guides/docs/01-project-structure.md) and
   - `instance-templates/` — the read-only template list with the settings each applies
   - `domains/` — cross-instance domain checks
   - `admin/` (`statistics/`, `host/`, `updates/`, `audit/`, `tasks/`, `sessions/`) — admin tools
-  - `hooks/` — webhooks Zitadel calls (the username claim, item 9)
-- Zitadel: `server/lib/zitadel/{client,jwt,types,branding,templates,releases,usage,usernameClaim}.ts`; Zitadel →
+  - `hooks/` — webhooks Zitadel calls (the claims, item 9)
+- Zitadel: `server/lib/zitadel/{client,jwt,types,branding,templates,releases,usage,claims}.ts`; Zitadel →
   API mappers + error mapping in `server/lib/api/utils/zitadel.ts`.
 - Host VM: `server/lib/host/{info,metrics,updates}.ts`; cached statuses in
   `server/lib/api/utils/metadata.ts` (`RuntimeMetadata`).

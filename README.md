@@ -117,10 +117,11 @@ bun run api-client:generate
 See [`example.env`](example.env). Key variables:
 
 - `LAVIAC_ZITADEL_AUTH_URL` — public Zitadel auth URL (the OIDC issuer).
-- `LAVIAC_ZITADEL_SYSTEM_API_URL` — Zitadel System API base URL (system-user JWT audience); may differ from the auth URL (e.g. a local endpoint).
+- `LAVIAC_ZITADEL_SYSTEM_API_URL` — Zitadel System API base URL; may differ from the auth URL (e.g. a local endpoint).
+- `LAVIAC_ZITADEL_SYSTEM_API_AUDIENCE` — the system-user JWT audience: Zitadel's own external URL (`https://auth.is-on.net` in production); defaults to the API URL.
 - `LAVIAC_ZITADEL_SYSTEM_USER_ID` + `..._PRIVATE_KEY` (or `..._PRIVATE_KEY_PATH`) — system API user.
 - `LAVIAC_ZITADEL_APPLY_DEFAULT_BRANDING` — brand new instances (default `true`).
-- `LAVIAC_ZITADEL_USERNAME_CLAIM` — give new instances the `username` claim (plain username, default `true`); `LAVIAC_ZITADEL_USERNAME_CLAIM_WEBHOOK_URL` overrides the webhook URL Zitadel calls (default `${LAVIAC_APP_URL}/api/v1/hooks/username-claim`).
+- `LAVIAC_ZITADEL_CLAIMS` — give new instances the standard `username` (plain username) and `groups` (flat role list) claims (default `true`); `LAVIAC_ZITADEL_CLAIMS_WEBHOOK_URL` overrides the webhook URL Zitadel calls (default `${LAVIAC_APP_URL}/api/v1/hooks/claims`).
 - `LAVIAC_OIDC_CLIENT_ID` / `..._CLIENT_SECRET` / `..._ADMIN_ROLE` — admin OIDC.
 - `LAVIAC_STATIC_AUTH_USERNAME` / `..._PASSWORD_HASH` — static fallback login; the hash is **required** at boot.
 - `LAVIAC_HOST_ROOT` — where the host VM's filesystem is visible (`/`, or `/host` in Docker).

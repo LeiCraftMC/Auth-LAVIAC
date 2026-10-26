@@ -1,8 +1,10 @@
 /**
  * System-user JWT — the ONLY way to authenticate against the Zitadel System API
- * (self-hosted only). A self-signed RS256 JWT (iss/sub = system user id, aud = Zitadel
- * URL, exp = now + 1h) is sent directly as `Authorization: Bearer <jwt>` — it is NOT
- * exchanged at the OAuth token endpoint.
+ * (self-hosted only). A self-signed RS256 JWT (iss/sub = system user id, aud = Zitadel's
+ * external URL, exp = now + 1h) is sent directly as `Authorization: Bearer <jwt>` — it is NOT
+ * exchanged at the OAuth token endpoint. Zitadel checks `aud` against its own
+ * ExternalDomain/Port/Secure, not the host it is called on, so it can differ from the API URL
+ * (`LAVIAC_ZITADEL_SYSTEM_API_AUDIENCE`).
  *
  * The system user and its public key are registered in Zitadel runtime settings
  * (`SystemAPIUsers`). See:
@@ -40,7 +42,11 @@ export class ZitadelSystemJwt {
 
 		const config = ConfigHandler.getConfig();
 		const userId = config?.ZITADEL_SYSTEM_USER_ID;
-		const audience = (config?.ZITADEL_SYSTEM_API_URL ?? "").replace(/\/$/, "");
+		const audience = (
+			config?.ZITADEL_SYSTEM_API_AUDIENCE ??
+			config?.ZITADEL_SYSTEM_API_URL ??
+			""
+		).replace(/\/$/, "");
 		if (!userId || !audience) {
 			throw new Error("LAVIAC_ZITADEL_SYSTEM_USER_ID and LAVIAC_ZITADEL_SYSTEM_API_URL must be set.");
 		}

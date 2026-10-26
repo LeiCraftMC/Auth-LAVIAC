@@ -138,18 +138,22 @@ export class ConfigHandler {
 		// settings — the System API may live on a different (e.g. local/internal) endpoint.
 		ZITADEL_AUTH_URL: CS.string().optional(),
 		ZITADEL_SYSTEM_API_URL: CS.string().optional(),
+		// The `aud` of the system-user JWT: Zitadel's own external URL (ExternalDomain/Port/Secure),
+		// which can differ from the API URL. Default: ZITADEL_SYSTEM_API_URL.
+		ZITADEL_SYSTEM_API_AUDIENCE: CS.string().optional(),
 		ZITADEL_SYSTEM_USER_ID: CS.string().optional(),
 		ZITADEL_SYSTEM_USER_PRIVATE_KEY_PATH: CS.string().optional(),
 		ZITADEL_SYSTEM_USER_PRIVATE_KEY: CS.string().optional(),
 		// Apply the LAVIAC default branding (label policy + font) to every newly created instance.
 		// Needs the system user to hold IAM_OWNER via a `System` membership (see example.env).
 		ZITADEL_APPLY_DEFAULT_BRANDING: CS.boolean().default(true),
-		// Give every newly provisioned instance the `username` claim (the plain username, without
-		// `@<org domain>`), answered by LAVIAC's webhook (see server/lib/zitadel/usernameClaim.ts).
-		ZITADEL_USERNAME_CLAIM: CS.boolean().default(true),
+		// Give every newly provisioned instance the standard claims `username` (the plain username,
+		// without `@<org domain>`) and `groups` (the role keys as a flat list), answered by LAVIAC's
+		// webhook (see server/lib/zitadel/claims.ts).
+		ZITADEL_CLAIMS: CS.boolean().default(true),
 		// The URL Zitadel calls for it; the instance id is appended.
-		// Default: `${LAVIAC_APP_URL}/api/v1/hooks/username-claim`.
-		ZITADEL_USERNAME_CLAIM_WEBHOOK_URL: CS.string().optional(),
+		// Default: `${LAVIAC_APP_URL}/api/v1/hooks/claims`.
+		ZITADEL_CLAIMS_WEBHOOK_URL: CS.string().optional(),
 
 		OIDC_CLIENT_ID: CS.string().optional(),
 		OIDC_CLIENT_SECRET: CS.string().optional(),

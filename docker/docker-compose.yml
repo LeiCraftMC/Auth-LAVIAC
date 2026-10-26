@@ -15,15 +15,17 @@ services:
 
       LAVIAC_API_DISABLE_DOCS: false
 
-      LAVIAC_APP_URL: https://laviac.leicraftmc.de
+      LAVIAC_APP_URL: https://laviac.int.leicraftmc.de
 
       LAVIAC_ZITADEL_AUTH_URL: https://auth.leicraftmc.de
       LAVIAC_ZITADEL_SYSTEM_API_URL: https://auth.leicraftmc.de
+      # Zitadel's own external URL: the system-user JWT is refused with any other audience.
+      LAVIAC_ZITADEL_SYSTEM_API_AUDIENCE: https://auth.is-on.net
       LAVIAC_ZITADEL_SYSTEM_USER_ID: laviac-system-user
       LAVIAC_ZITADEL_APPLY_DEFAULT_BRANDING: true
-      LAVIAC_ZITADEL_USERNAME_CLAIM: true
-      # Default: ${LAVIAC_APP_URL}/api/v1/hooks/username-claim
-      # LAVIAC_ZITADEL_USERNAME_CLAIM_WEBHOOK_URL: https://laviac.leicraftmc.de/api/v1/hooks/username-claim
+      LAVIAC_ZITADEL_CLAIMS: true
+      # Default: ${LAVIAC_APP_URL}/api/v1/hooks/claims
+      # LAVIAC_ZITADEL_CLAIMS_WEBHOOK_URL: https://laviac.int.leicraftmc.de/api/v1/hooks/claims
 
       LAVIAC_OIDC_CLIENT_ID: laviac
       LAVIAC_OIDC_CLIENT_SECRET: ""
