@@ -591,7 +591,7 @@ export namespace InstanceTemplates {
 			id: "claims",
 			title: "Token claims",
 			description:
-				"Standard claims LAVIAC's webhook adds to the ID token and userinfo of every app (an Actions v2 target on preuserinfo).",
+				"Standard claims LAVIAC's webhook adds to the ID token, userinfo and JWT access tokens of every app (an Actions v2 target on preuserinfo and preaccesstoken).",
 			rows: [
 				{
 					label: "username",

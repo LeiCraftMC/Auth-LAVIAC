@@ -37,6 +37,7 @@ const TASK_STATUS: Record<
 
 const TASK_NAMES: Record<string, string> = {
 	applyDefaultBranding: "Apply default branding",
+	syncClaims: "Sync the claims webhook",
 };
 
 const statusOptions = Object.entries(TASK_STATUS).map(([value, status]) => ({

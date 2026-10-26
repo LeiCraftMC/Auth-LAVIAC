@@ -50,6 +50,15 @@ export default defineNitroPlugin(async (nitroApp) => {
 
 	await API.init([config.APP_URL], config.API_DISABLE_DOCS === true);
 
+	// Bring the claims webhook in order on every instance after a deploy, not only at the next
+	// 6-hourly run. Delayed: its self-test calls this server through the public URL, which only
+	// answers once the plugins are done and the server listens.
+	setTimeout(() => {
+		CronJobHandler.queueClaimsSync().catch((err) => {
+			Logger.error("Failed to queue the claims sync:", err);
+		});
+	}, 60_000).unref();
+
 	let shuttingDown = false;
 	async function shutdown(reason: string) {
 		if (shuttingDown) return;

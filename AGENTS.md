@@ -97,23 +97,33 @@ Style-Guides [docs/01](../../Style-Guides/docs/01-project-structure.md) and
    `public/robots.txt` disallows everything and there is no sitemap. The public-site chrome is
    gone: no `layouts/default.vue`, `components/layout/Header.vue` or `Footer.vue`. The auth layout
    and `error.vue` show only the centered `ImgAppLogo`, like the template's onboarding layout.
-9. **Zitadel calls LAVIAC back (webhooks).** Every template gives the instance standard claims
+9. **Zitadel calls LAVIAC back (webhooks).** Every instance of the Zitadel gets standard claims
    built from Zitadel's own: `username` (the plain username, without `@<org domain>`, when the
    `profile` scope is requested) and `groups` (the role keys of Zitadel's
    `urn:zitadel:iam:org:project[:<id>]:roles` claims as a flat list, whenever Zitadel sends
-   roles). The provisioning task adds the Actions v2 target `laviac-claims` (REST call, no
-   interrupt on error) and appends it to the `preuserinfo` execution, keeping the instance's own
-   targets there. Zitadel calls `POST /api/v1/hooks/claims/:instanceId`
+   roles), in the ID token, userinfo and JWT access tokens. `ZitadelClaims.sync`
+   (`server/lib/zitadel/claims.ts`) keeps the Actions v2 target `laviac-claims` (REST call, 5 s,
+   no interrupt on error) on the `preuserinfo` and `preaccesstoken` executions, next to the
+   instance's own targets, and replaces the legacy targets (`laviac-username-claim`, and
+   `clean-username-target` of the deprecated PHP script in the Deployment repo) everywhere they
+   are attached. The provisioning task runs it for a new instance; the `syncClaims` task
+   (`server/lib/tasks/syncClaims.ts`) for every running instance 60 s after startup and every
+   6 h (`CronJobHandler.queueClaimsSync`). Safety rules, keep them: nothing is written when
+   Zitadel would refuse the endpoint (its default deny list, checked on the resolved addresses);
+   the target is only attached and the legacy ones only removed after `selfTest` got the claims
+   back from a signed call through the public URL (an unreachable target would hold up every
+   token); all execution writes come from one list read (a re-read may lag). With
+   `LAVIAC_ZITADEL_CLAIMS=false` the sync removes `laviac-claims` and leaves the legacy targets.
+   Zitadel calls `POST /api/v1/hooks/claims/:instanceId`
    (`server/lib/api/versions/v1/routes/hooks/`). These routes diverge from the guide: no session,
    they check the `ZITADEL-Signature` HMAC with the target's signing key (read from the instance's
-   target and cached in `server/lib/zitadel/claims.ts`), answer in Zitadel's format
-   instead of the envelope, and are hidden from the API docs and the generated client. Every
-   instance of the Zitadel is served (the instance list is cached and refetched at most once a
-   minute for unknown ids), so instances LAVIAC didn't provision can get the target by hand.
-   `LAVIAC_ZITADEL_CLAIMS=false` turns it off; `LAVIAC_ZITADEL_CLAIMS_WEBHOOK_URL` overrides the
-   URL Zitadel calls. It must be public: Zitadel's default deny list refuses localhost and
-   private IPs as target endpoints, and it stays on so instance admins can't reach internal
-   services through targets.
+   target and cached), answer in Zitadel's format instead of the envelope, and are hidden from
+   the API docs and the generated client. Every instance of the Zitadel is served (the instance
+   list is cached and refetched at most once a minute for unknown ids).
+   `LAVIAC_ZITADEL_CLAIMS_WEBHOOK_URL` overrides the URL Zitadel calls. It must be public:
+   Zitadel's default deny list refuses localhost and private IPs, and it stays on so instance
+   admins can't reach internal services through targets. Zitadel's discovery document can't list
+   these claims (`claims_supported` is a fixed list in Zitadel v4).
 
 ## Key locations
 
@@ -130,8 +140,9 @@ Style-Guides [docs/01](../../Style-Guides/docs/01-project-structure.md) and
 - Host VM: `server/lib/host/{info,metrics,updates}.ts`; cached statuses in
   `server/lib/api/utils/metadata.ts` (`RuntimeMetadata`).
 - Background work: `server/lib/tasks/` (`TaskScheduler`; `provisionInstance`,
-  `applyDefaultBranding`, shared Zitadel retries in `zitadelSteps.ts`), `server/lib/utils/cron.ts`
-  (`CronJobHandler`: metrics every minute, cleanup hourly, update checks every 6 h).
+  `applyDefaultBranding`, `syncClaims`, shared Zitadel retries in `zitadelSteps.ts`),
+  `server/lib/utils/cron.ts` (`CronJobHandler`: metrics every minute, cleanup hourly, update
+  checks and the claims sync every 6 h).
 - OIDC/session: `server/lib/oidc/handler.ts`, `server/lib/api/utils/authHandler.ts`.
 - DB/audit: `server/lib/db/{index,schema,utils}.ts`, `server/lib/utils/audit.ts`.
 - Frontend: `app/pages/dashboard/` (overview, `instances/`, `instances/[instance_id]/…`,

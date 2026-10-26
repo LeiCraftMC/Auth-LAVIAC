@@ -519,14 +519,15 @@ export class ZitadelClient {
 		return res.targets ?? [];
 	}
 
-	/** Create a target. Returns its id. */
-	static async createTarget(instanceHost: string, body: ZitadelTargetRequest): Promise<string> {
-		const res = await ZitadelClient.request<ZitadelCreateTargetResponse>(
-			"POST",
-			"/v2/actions/targets",
-			{ instanceHost, body },
-		);
-		return res.id;
+	/** Create a target. Returns its id and signing key. */
+	static async createTarget(
+		instanceHost: string,
+		body: ZitadelTargetRequest,
+	): Promise<ZitadelCreateTargetResponse> {
+		return ZitadelClient.request<ZitadelCreateTargetResponse>("POST", "/v2/actions/targets", {
+			instanceHost,
+			body,
+		});
 	}
 
 	/** Update a target; its signing key is kept. */
@@ -538,6 +539,13 @@ export class ZitadelClient {
 		await ZitadelClient.request("POST", `/v2/actions/targets/${encodeURIComponent(id)}`, {
 			instanceHost,
 			body,
+		});
+	}
+
+	/** Delete a target (404 when it is gone already). */
+	static async deleteTarget(instanceHost: string, id: string): Promise<void> {
+		await ZitadelClient.request("DELETE", `/v2/actions/targets/${encodeURIComponent(id)}`, {
+			instanceHost,
 		});
 	}
 

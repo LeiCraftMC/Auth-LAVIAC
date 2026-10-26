@@ -1,8 +1,11 @@
 import type { CronJob as BunCronJob } from "bun";
+import { and, eq } from "drizzle-orm";
+import { DB } from "../db";
 import { HostMetrics } from "../host/metrics";
 import { OSUpdates } from "../host/updates";
 import { TaskScheduler } from "../tasks";
 import { ZitadelReleases } from "../zitadel/releases";
+import { ConfigHandler } from "./config";
 import { Logger } from "./logger";
 
 class CronJob {
@@ -56,6 +59,35 @@ export class CronJobHandler {
 				await OSUpdates.check();
 				await ZitadelReleases.check();
 			}),
+
+			// Keep the claims webhook in order on every instance (also queued at startup).
+			new CronJob("41 */6 * * *", async () => {
+				await CronJobHandler.queueClaimsSync();
+			}),
+		);
+	}
+
+	/**
+	 * Queue the syncClaims task (server/lib/tasks/syncClaims.ts), unless one is waiting to run
+	 * already or no system user is configured to call Zitadel with.
+	 */
+	static async queueClaimsSync() {
+		const config = ConfigHandler.getConfig();
+		if (!config?.ZITADEL_SYSTEM_API_URL || !config.ZITADEL_SYSTEM_USER_ID) return;
+
+		const tasks = DB.Tables.scheduled_tasks;
+		const waiting = DB.instance()
+			.select({ id: tasks.id })
+			.from(tasks)
+			.where(and(eq(tasks.function, "syncClaims"), eq(tasks.status, "pending")))
+			.get();
+		if (waiting) return;
+
+		await TaskScheduler.enqueueTask(
+			"syncClaims",
+			{},
+			{ created_by_user_sub: null },
+			{ storeLogs: true, autoDelete: true },
 		);
 	}
 

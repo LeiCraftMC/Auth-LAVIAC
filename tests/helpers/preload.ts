@@ -29,6 +29,8 @@ function setTestEnv(rootDir: string) {
 		// No Zitadel in the test env: the System API is unconfigured, so Zitadel-backed routes
 		// report their upstream error and the default branding is never queued.
 		LAVIAC_ZITADEL_APPLY_DEFAULT_BRANDING: false,
+		// A public address (TEST-NET-3): the claims sync refuses localhost endpoints, like Zitadel.
+		LAVIAC_ZITADEL_CLAIMS_WEBHOOK_URL: "https://203.0.113.10/api/v1/hooks/claims",
 
 		LAVIAC_STATIC_AUTH_USERNAME: "admin",
 		LAVIAC_STATIC_AUTH_PASSWORD_HASH: STATIC_AUTH_TEST_HASH,

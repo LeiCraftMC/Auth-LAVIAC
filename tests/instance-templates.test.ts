@@ -380,6 +380,8 @@ describe("Provisioning task", () => {
 			/** The instance's Actions v2 targets and executions (default: none). */
 			targets?: ZitadelTarget[];
 			executions?: ZitadelExecution[];
+			/** What the claims webhook self-test reports (default: it answers). */
+			selfTestProblem?: string;
 		} = {},
 	) {
 		const calls: { name: string; args: unknown[] }[] = [];
@@ -436,7 +438,10 @@ describe("Provisioning task", () => {
 		);
 		mock(
 			"createTarget",
-			record("createTarget", () => "target-1"),
+			record("createTarget", () => ({ id: "target-1", signingKey: "key-1" })),
+		);
+		spies.push(
+			spyOn(ZitadelClaims, "selfTest").mockImplementation(async () => opts.selfTestProblem ?? null),
 		);
 		mock(
 			"listExecutions",
@@ -462,6 +467,7 @@ describe("Provisioning task", () => {
 			"setDefaultOrg",
 			"updateTarget",
 			"setExecution",
+			"deleteTarget",
 		] as const) {
 			mock(name, record(name));
 		}
@@ -631,9 +637,13 @@ describe("Provisioning task", () => {
 		expect(result).toMatchObject({ success: false });
 	});
 
-	test("adds the claims target after the instance's own preuserinfo targets", async () => {
+	const WEBHOOK = "https://203.0.113.10/api/v1/hooks/claims";
+	const executionWrites = (calls: { name: string; args: unknown[] }[]) =>
+		calls.filter((call) => call.name === "setExecution").map((call) => call.args.slice(1));
+
+	test("adds the claims target after the instance's own targets on both functions", async () => {
 		seedSetup("inst-claim", "minimal", {});
-		const { index, argsOf } = mockZitadel({
+		const { calls, index, argsOf } = mockZitadel({
 			executions: [
 				{ condition: { function: { name: "preuserinfo" } }, targets: ["own-target"] },
 				{ condition: { function: { name: "preaccesstoken" } }, targets: ["other"] },
@@ -644,13 +654,13 @@ describe("Provisioning task", () => {
 		expect(result).toMatchObject({ success: true });
 		expect(argsOf("createTarget")[1]).toEqual({
 			name: ZitadelClaims.TARGET_NAME,
-			endpoint: "http://localhost:12191/api/v1/hooks/claims/inst-claim",
-			timeout: "10s",
+			endpoint: `${WEBHOOK}/inst-claim`,
+			timeout: "5s",
 			restCall: { interruptOnError: false },
 		});
-		expect(argsOf("setExecution").slice(1)).toEqual([
-			{ function: { name: "preuserinfo" } },
-			["own-target", "target-1"],
+		expect(executionWrites(calls)).toEqual([
+			[{ function: { name: "preuserinfo" } }, ["own-target", "target-1"]],
+			[{ function: { name: "preaccesstoken" } }, ["other", "target-1"]],
 		]);
 		expect(index("setExecution")).toBeLessThan(index("setDefaultOrg"));
 	});
@@ -662,12 +672,16 @@ describe("Provisioning task", () => {
 				{
 					id: "target-9",
 					name: ZitadelClaims.TARGET_NAME,
-					endpoint: "http://localhost:12191/api/v1/hooks/claims/inst-claim-again",
-					timeout: "10s",
+					endpoint: `${WEBHOOK}/inst-claim-again`,
+					timeout: "5s",
 					restCall: {},
+					signingKey: "key-9",
 				},
 			],
-			executions: [{ condition: { function: { name: "preuserinfo" } }, targets: ["target-9"] }],
+			executions: [
+				{ condition: { function: { name: "preuserinfo" } }, targets: ["target-9"] },
+				{ condition: { function: { name: "preaccesstoken" } }, targets: ["target-9"] },
+			],
 		});
 
 		const result = await run("inst-claim-again");
@@ -679,7 +693,7 @@ describe("Provisioning task", () => {
 
 	test("points a claims target with another endpoint at the webhook", async () => {
 		seedSetup("inst-claim-moved", "minimal", {});
-		const { argsOf, index } = mockZitadel({
+		const { calls, argsOf } = mockZitadel({
 			targets: [
 				{
 					id: "target-9",
@@ -687,6 +701,7 @@ describe("Provisioning task", () => {
 					endpoint: "https://old.example.com/hook",
 					timeout: "10s",
 					restCall: { interruptOnError: true },
+					signingKey: "key-9",
 				},
 			],
 			executions: [{ condition: { function: { name: "preuserinfo" } }, targets: ["target-9"] }],
@@ -698,11 +713,25 @@ describe("Provisioning task", () => {
 			"target-9",
 			{
 				name: ZitadelClaims.TARGET_NAME,
-				endpoint: "http://localhost:12191/api/v1/hooks/claims/inst-claim-moved",
-				timeout: "10s",
+				endpoint: `${WEBHOOK}/inst-claim-moved`,
+				timeout: "5s",
 				restCall: { interruptOnError: false },
 			},
 		]);
+		// Only the missing function is written.
+		expect(executionWrites(calls)).toEqual([
+			[{ function: { name: "preaccesstoken" } }, ["target-9"]],
+		]);
+	});
+
+	test("a webhook that doesn't answer leaves the target detached, but the template applies", async () => {
+		seedSetup("inst-claim-down", "minimal", {});
+		const { index } = mockZitadel({ selfTestProblem: "the webhook is unreachable" });
+
+		const result = await run("inst-claim-down");
+		expect(result).toMatchObject({ success: true });
+		expect(index("createTarget")).toBeGreaterThan(-1);
 		expect(index("setExecution")).toBe(-1);
+		expect(index("setDefaultOrg")).toBeGreaterThan(-1);
 	});
 });

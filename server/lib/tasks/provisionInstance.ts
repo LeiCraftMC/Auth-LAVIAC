@@ -203,22 +203,19 @@ export const ProvisionInstanceTask = new TaskHandler.StepBasedTaskFn(
 	})
 	.addStep("Add the claims webhook", async (args, logger, state, isPaused) => {
 		const { host } = requireState(state);
-		const endpoint = ZitadelClaims.endpoint(args.instanceId);
-		if (!endpoint) {
-			logger.info("The claims webhook is off (LAVIAC_ZITADEL_CLAIMS=false).");
-			return { success: true };
-		}
 
-		let targetId = "";
+		// The same sync the syncClaims task runs for every instance (server/lib/zitadel/claims.ts).
 		return runActions(logger, isPaused, [
 			[
-				"Claims: target",
+				"Claims webhook",
 				async () => {
-					targetId = await ZitadelClaims.upsertTarget(host, endpoint);
-					logger.info(`Claims target ${targetId} calls ${endpoint}.`);
+					const result = await ZitadelClaims.sync(args.instanceId, host);
+					for (const change of result.changes) logger.info(`Claims: ${change}.`);
+					// Not a failure of the template: the syncClaims task attaches it once it answers.
+					if (result.problem) logger.warn(`Claims: target left detached, ${result.problem}.`);
+					else if (result.changes.length === 0) logger.info("Claims: already in order.");
 				},
 			],
-			[`Claims: ${ZitadelClaims.FUNCTION_NAME} execution`, () => ZitadelClaims.attach(host, targetId)],
 		]);
 	})
 	.addStep("Create the home org", async (args, logger, state, isPaused) => {

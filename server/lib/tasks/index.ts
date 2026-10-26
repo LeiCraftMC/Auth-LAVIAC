@@ -6,6 +6,7 @@ import { DB } from "../db";
 import { Logger } from "../utils/logger";
 import { ApplyDefaultBrandingTask } from "./applyDefaultBranding";
 import { ProvisionInstanceTask } from "./provisionInstance";
+import { SyncClaimsTask } from "./syncClaims";
 import { TaskUtils } from "./utils";
 
 type AdditionalTaskMeta = {
@@ -248,7 +249,8 @@ class PersistentLogger implements TaskHandler.PersistentTaskLoggerLike {
 
 const Registry = new TaskHandler.TaskFNRegistry()
 	.register(ApplyDefaultBrandingTask)
-	.register(ProvisionInstanceTask);
+	.register(ProvisionInstanceTask)
+	.register(SyncClaimsTask);
 
 const taskStorage = new TaskStorage();
 
