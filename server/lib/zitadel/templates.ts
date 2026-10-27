@@ -13,7 +13,7 @@
  * (server/lib/tasks/provisionInstance.ts). {@link InstanceTemplates.describe} renders the same
  * plan as readable rows for the dashboard, so what is shown is what is applied.
  *
- * Checked against Zitadel v4.19.4 with Login V2:
+ * Checked against Zitadel v4.19.4 with Login V2 (the code behind these is unchanged in v4.20.0):
  * - Login V2 reads the default org's login settings when a request has no org, and its sign-up
  *   page registers users into the default org (apps/login/src/app/(login)/register/page.tsx).
  * - Org self-registration exists only on the Login V1 page `/ui/login/register/org`, which Zitadel

@@ -83,7 +83,7 @@ function withTarget(current: string[], ownId: string, legacyIds: Set<string>): s
 	return next;
 }
 
-/** Whether `ip` is in Zitadel's default deny list (`ZITADEL_HTTPCLIENT_DENYLIST`, v4.19.4). */
+/** Whether `ip` is in Zitadel's default deny list (`ZITADEL_HTTPCLIENT_DENYLIST`, v4.19.4–v4.20.0). */
 function deniedAddress(ip: string): boolean {
 	const mapped = ip.toLowerCase().match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
 	const address = mapped?.[1] ?? ip.toLowerCase();
