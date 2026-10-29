@@ -5,8 +5,8 @@
  * Every instance is created with a first org named `SYSTEM`: Zitadel puts the ZITADEL project,
  * the Console app and the initial admin there. The template then decides which org becomes the
  * default org (the "home org": company, public or catch-all) and how sign-in works. The security
- * baseline ({@link InstanceTemplates.BASELINE}) is the same for every template, and so is the
- * `username` and `groups` claims (./claims.ts, unless `LAVIAC_ZITADEL_CLAIMS=false`).
+ * baseline ({@link InstanceTemplates.BASELINE}) is the same for every template, and so are the
+ * `urn:lcmc-auth:*` claims (./claims.ts, unless `LAVIAC_ZITADEL_CLAIMS=false`).
  *
  * {@link InstanceTemplates.resolve} turns a template and its creation options into a
  * {@link InstanceTemplates.Plan}: the exact Zitadel payloads the `provisionInstance` task writes
@@ -591,19 +591,26 @@ export namespace InstanceTemplates {
 			id: "claims",
 			title: "Token claims",
 			description:
-				"Standard claims LAVIAC's webhook adds to the ID token, userinfo and JWT access tokens of every app (an Actions v2 target on preuserinfo and preaccesstoken).",
+				"Claims LAVIAC's webhook adds to the ID token, userinfo and JWT access tokens of every app (an Actions v2 target on preuserinfo and preaccesstoken).",
 			rows: [
 				{
-					label: "username",
+					label: ZitadelClaims.CLAIMS.username,
 					value: ZitadelClaims.enabled()
 						? "The plain username (alice, without @<org domain>), when the profile scope is requested"
 						: claimsOff,
 					source: "baseline",
 				},
 				{
-					label: "groups",
+					label: ZitadelClaims.CLAIMS.roles,
 					value: ZitadelClaims.enabled()
-						? "The user's role keys as a flat list, whenever Zitadel sends the roles"
+						? "The role keys in the app's own project as a list, whenever Zitadel sends the roles"
+						: claimsOff,
+					source: "baseline",
+				},
+				{
+					label: ZitadelClaims.CLAIMS.projectRoles,
+					value: ZitadelClaims.enabled()
+						? "<project id>:<role key> for every project whose roles Zitadel sends (the app's own and those it requests by scope)"
 						: claimsOff,
 					source: "baseline",
 				},

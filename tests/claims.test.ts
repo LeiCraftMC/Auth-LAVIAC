@@ -45,9 +45,14 @@ function payload(
 
 const answer = (body: string) => ZitadelClaims.answer(JSON.parse(body));
 
+// The claim names apps are configured with; spelled out so a rename shows up here.
+const USERNAME = "urn:lcmc-auth:username";
+const ROLES = "urn:lcmc-auth:roles";
+const PROJECT_ROLES = "urn:lcmc-auth:project-roles";
+
 describe("Claims answer", () => {
 	test("username: the plain username with the profile scope, nothing without", () => {
-		expect(answer(payload())).toEqual({ append_claims: [{ key: "username", value: "alice" }] });
+		expect(answer(payload())).toEqual({ append_claims: [{ key: USERNAME, value: "alice" }] });
 		expect(answer(payload({ profile: false }))).toEqual({});
 	});
 
@@ -56,32 +61,70 @@ describe("Claims answer", () => {
 		expect(claims?.[0]?.value).toBe("Alice");
 	});
 
-	test("groups: the role keys of every project roles claim, sorted and once each", () => {
+	test("roles: the app's own project only; project-roles: every project, with its id", () => {
 		const body = payload({
 			profile: false,
 			userinfo: {
-				"urn:zitadel:iam:org:project:roles": roleMap("termix", "devops"),
-				"urn:zitadel:iam:org:project:111:roles": roleMap("termix", "devops"),
-				"urn:zitadel:iam:org:project:222:roles": roleMap("grafana-viewer"),
+				// Zitadel sends the app's own project (111) twice: without and with its id.
+				"urn:zitadel:iam:org:project:roles": roleMap("termix", "admin"),
+				"urn:zitadel:iam:org:project:111:roles": roleMap("termix", "admin"),
+				// Requested by scope; its `admin` is another role than 111's.
+				"urn:zitadel:iam:org:project:222:roles": roleMap("admin", "grafana-viewer"),
 				// Not a roles claim.
 				"urn:zitadel:iam:user:resourceowner:name": "Acme",
 			},
 		});
 		expect(answer(body)).toEqual({
-			append_claims: [{ key: "groups", value: ["devops", "grafana-viewer", "termix"] }],
+			append_claims: [
+				{ key: ROLES, value: ["admin", "termix"] },
+				{ key: PROJECT_ROLES, value: ["111:admin", "111:termix", "222:admin", "222:grafana-viewer"] },
+			],
 		});
 	});
 
-	test("groups: nothing when Zitadel sends no roles", () => {
+	test("project-roles: a role key can't pass for another project's role", () => {
+		const own = roleMap("222:admin");
+		const body = payload({
+			profile: false,
+			userinfo: {
+				"urn:zitadel:iam:org:project:roles": own,
+				"urn:zitadel:iam:org:project:111:roles": own,
+			},
+		});
+		expect(answer(body)).toEqual({
+			append_claims: [
+				{ key: ROLES, value: ["222:admin"] },
+				{ key: PROJECT_ROLES, value: ["111:222:admin"] },
+			],
+		});
+	});
+
+	test("roles: none when only other projects' roles are sent", () => {
+		const body = payload({
+			profile: false,
+			userinfo: { "urn:zitadel:iam:org:project:222:roles": roleMap("superadmin") },
+		});
+		expect(answer(body)).toEqual({
+			append_claims: [{ key: PROJECT_ROLES, value: ["222:superadmin"] }],
+		});
+	});
+
+	test("roles: nothing when Zitadel sends no roles", () => {
 		expect(answer(payload({ profile: false, userinfo: {} }))).toEqual({});
 	});
 
-	test("username and groups together", () => {
-		const body = payload({ userinfo: { "urn:zitadel:iam:org:project:roles": roleMap("admin") } });
+	test("username and roles together", () => {
+		const body = payload({
+			userinfo: {
+				"urn:zitadel:iam:org:project:roles": roleMap("admin"),
+				"urn:zitadel:iam:org:project:111:roles": roleMap("admin"),
+			},
+		});
 		expect(answer(body)).toEqual({
 			append_claims: [
-				{ key: "username", value: "alice" },
-				{ key: "groups", value: ["admin"] },
+				{ key: USERNAME, value: "alice" },
+				{ key: ROLES, value: ["admin"] },
+				{ key: PROJECT_ROLES, value: ["111:admin"] },
 			],
 		});
 	});
@@ -396,13 +439,19 @@ describe("Claims webhook", () => {
 		const calls = mockTarget(KEY);
 		const [instanceId] = instanceIds as [string];
 
-		const body = payload({ userinfo: { "urn:zitadel:iam:org:project:roles": roleMap("devops") } });
+		const body = payload({
+			userinfo: {
+				"urn:zitadel:iam:org:project:roles": roleMap("devops"),
+				"urn:zitadel:iam:org:project:111:roles": roleMap("devops"),
+			},
+		});
 		const res = await post(instanceId, body, sign(body));
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({
 			append_claims: [
-				{ key: "username", value: "alice" },
-				{ key: "groups", value: ["devops"] },
+				{ key: USERNAME, value: "alice" },
+				{ key: ROLES, value: ["devops"] },
+				{ key: PROJECT_ROLES, value: ["111:devops"] },
 			],
 		});
 

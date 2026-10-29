@@ -97,11 +97,15 @@ Style-Guides [docs/01](../../Style-Guides/docs/01-project-structure.md) and
    `public/robots.txt` disallows everything and there is no sitemap. The public-site chrome is
    gone: no `layouts/default.vue`, `components/layout/Header.vue` or `Footer.vue`. The auth layout
    and `error.vue` show only the centered `ImgAppLogo`, like the template's onboarding layout.
-9. **Zitadel calls LAVIAC back (webhooks).** Every instance of the Zitadel gets standard claims
-   built from Zitadel's own: `username` (the plain username, without `@<org domain>`, when the
-   `profile` scope is requested) and `groups` (the role keys of Zitadel's
-   `urn:zitadel:iam:org:project[:<id>]:roles` claims as a flat list, whenever Zitadel sends
-   roles), in the ID token, userinfo and JWT access tokens. `ZitadelClaims.sync`
+9. **Zitadel calls LAVIAC back (webhooks).** Every instance of the Zitadel gets claims built from
+   Zitadel's own: `urn:lcmc-auth:username` (the plain username, without `@<org domain>`, when
+   the `profile` scope is requested), `urn:lcmc-auth:roles` (the role keys of
+   `urn:zitadel:iam:org:project:roles`, the app's own project) and `urn:lcmc-auth:project-roles`
+   (`<project id>:<role key>` from every `urn:zitadel:iam:org:project:<id>:roles` claim), in the
+   ID token, userinfo and JWT access tokens. Keep the `urn:lcmc-auth:` names (Zitadel drops an
+   action's claim whose key it already set, and v5 sets `groups` from its own user groups) and
+   keep projects apart (never merge role keys of different projects, never mix plain and
+   qualified entries in one claim). `ZitadelClaims.sync`
    (`server/lib/zitadel/claims.ts`) keeps the Actions v2 target `laviac-claims` (REST call, 5 s,
    no interrupt on error) on the `preuserinfo` and `preaccesstoken` executions, next to the
    instance's own targets, and replaces the legacy targets (`laviac-username-claim`, and

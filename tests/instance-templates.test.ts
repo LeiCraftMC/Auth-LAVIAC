@@ -150,8 +150,10 @@ describe("Instance templates", () => {
 	test("every template shows the claims", () => {
 		for (const id of InstanceTemplates.IDS) {
 			const rows = InstanceTemplates.describe(id, null).flatMap((section) => section.rows);
-			expect(rows.find((row) => row.label === "username")?.value).toContain("plain username");
-			expect(rows.find((row) => row.label === "groups")?.value).toContain("flat list");
+			const value = (label: string) => rows.find((row) => row.label === label)?.value;
+			expect(value("urn:lcmc-auth:username")).toContain("plain username");
+			expect(value("urn:lcmc-auth:roles")).toContain("app's own project");
+			expect(value("urn:lcmc-auth:project-roles")).toContain("<project id>:<role key>");
 		}
 	});
 });

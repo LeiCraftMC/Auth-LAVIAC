@@ -121,7 +121,7 @@ See [`example.env`](example.env). Key variables:
 - `LAVIAC_ZITADEL_SYSTEM_API_AUDIENCE` — the system-user JWT audience: Zitadel's own external URL (`https://auth.is-on.net` in production); defaults to the API URL.
 - `LAVIAC_ZITADEL_SYSTEM_USER_ID` + `..._PRIVATE_KEY` (or `..._PRIVATE_KEY_PATH`) — system API user.
 - `LAVIAC_ZITADEL_APPLY_DEFAULT_BRANDING` — brand new instances (default `true`).
-- `LAVIAC_ZITADEL_CLAIMS` — keep the standard `username` (plain username) and `groups` (flat role list) claims on every instance through LAVIAC's webhook, replacing legacy targets (default `true`); `LAVIAC_ZITADEL_CLAIMS_WEBHOOK_URL` overrides the webhook URL Zitadel calls (default `${LAVIAC_APP_URL}/api/v1/hooks/claims`).
+- `LAVIAC_ZITADEL_CLAIMS` — keep the claims `urn:lcmc-auth:username` (plain username), `urn:lcmc-auth:roles` (role keys of the app's own project) and `urn:lcmc-auth:project-roles` (`<project id>:<role key>`) on every instance through LAVIAC's webhook, replacing legacy targets (default `true`); `LAVIAC_ZITADEL_CLAIMS_WEBHOOK_URL` overrides the webhook URL Zitadel calls (default `${LAVIAC_APP_URL}/api/v1/hooks/claims`).
 - `LAVIAC_OIDC_CLIENT_ID` / `..._CLIENT_SECRET` / `..._ADMIN_ROLE` — admin OIDC.
 - `LAVIAC_STATIC_AUTH_USERNAME` / `..._PASSWORD_HASH` — static fallback login; the hash is **required** at boot.
 - `LAVIAC_HOST_ROOT` — where the host VM's filesystem is visible (`/`, or `/host` in Docker).

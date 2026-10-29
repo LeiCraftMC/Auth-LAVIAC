@@ -1,15 +1,30 @@
 /**
- * ZitadelClaims — standard OIDC claims LAVIAC adds to every instance of the Zitadel, built from
- * what Zitadel only sends in its own formats:
+ * ZitadelClaims — claims LAVIAC adds to every instance of the Zitadel, built from what Zitadel
+ * only sends in its own formats:
  *
- * - `username`: the plain username. With the org domain suffix on (domain policy
+ * - `urn:lcmc-auth:username`: the plain username. With the org domain suffix on (domain policy
  *   `userLoginMustBeDomain`), Zitadel's `preferred_username` is `alice@<org domain>`. Only with
  *   the `profile` scope: Zitadel sends no scopes to actions, but it only puts
- *   `preferred_username` into the userinfo when `profile` was requested.
- * - `groups`: the user's role keys as a flat list (`["devops", "infra-admin"]`), the format apps
- *   like Termix, Grafana or Portainer read. Zitadel sends roles as objects keyed by role
- *   (`urn:zitadel:iam:org:project:roles`, `urn:zitadel:iam:org:project:<id>:roles`) and only when
- *   the project asserts roles or the app asks for them, so `groups` follows the same rules.
+ *   `preferred_username` into the userinfo when `profile` was requested. With the suffix on,
+ *   Zitadel keeps usernames unique only within an org, so two orgs can each have an `alice`.
+ * - `urn:lcmc-auth:roles`: the role keys in the app's own project as a list
+ *   (`["devops", "infra-admin"]`), the format apps like Termix, Grafana or Portainer read. Zitadel
+ *   sends roles as objects keyed by role, only when the project asserts roles or the app asks for
+ *   them, so these claims follow the same rules.
+ * - `urn:lcmc-auth:project-roles`: `<project id>:<role key>` for every project whose roles Zitadel
+ *   sent: the app's own, and those the app asks for by scope (`urn:zitadel:iam:org:projects:roles`
+ *   plus `urn:zitadel:iam:org:project:id:<id>:aud`).
+ *
+ * Roles of different projects stay apart: the same role key can mean different things in two
+ * projects, so `roles` holds the app's own project only, and `project-roles` names the project in
+ * every entry. Project ids are digits, so the first `:` ends the id whatever the role key holds
+ * (Zitadel puts no limit on its characters). Plain and qualified entries never share a claim: a
+ * role key such as `<other project id>:admin` could pass for another project's role there.
+ *
+ * The names are namespaced because Zitadel drops a claim from an action when the key is already
+ * set, and keeps names to itself: everything under `urn:zitadel:iam`, and from v5 (on its main
+ * branch, not in v4.20.0) `groups`, filled with the names of Zitadel's user groups, which any org
+ * admin can create.
  *
  * {@link ZitadelClaims.sync} gives an instance the Actions v2 target `laviac-claims` and attaches
  * it to the `preuserinfo` function (ID token and userinfo) and `preaccesstoken` (JWT access
@@ -38,8 +53,9 @@ const KEY_REFRESH_INTERVAL_MS = 30_000;
 // An unknown instance id refetches the instance list (it may be new), at most this often.
 const INSTANCE_LIST_REFRESH_INTERVAL_MS = 60_000;
 
+// Zitadel's roles claims: the app's own project, and one per project with its id.
 const ROLES_CLAIM = "urn:zitadel:iam:org:project:roles";
-const PROJECT_ROLES_CLAIM = /^urn:zitadel:iam:org:project:\d+:roles$/;
+const PROJECT_ROLES_CLAIM = /^urn:zitadel:iam:org:project:(\d+):roles$/;
 
 const signingKeys = new Map<string, { key: string | null; fetchedAt: number }>();
 let knownInstances: { ids: Set<string>; fetchedAt: number } | null = null;
@@ -57,16 +73,19 @@ function plainUsername(payload: ZitadelClaims.Payload): string | null {
 	return username || null;
 }
 
-/** The role keys of every project roles claim Zitadel put into the userinfo, sorted. */
-function roleKeys(userinfo: Record<string, unknown>): string[] {
-	const keys = new Set<string>();
+/** The role keys of one Zitadel roles claim (role key → { org id: org domain }). */
+function roleKeys(value: unknown): string[] {
+	return value && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
+}
+
+/** `<project id>:<role key>` for every project roles claim Zitadel put into the userinfo, sorted. */
+function projectRoles(userinfo: Record<string, unknown>): string[] {
+	const entries: string[] = [];
 	for (const [claim, value] of Object.entries(userinfo)) {
-		if (claim !== ROLES_CLAIM && !PROJECT_ROLES_CLAIM.test(claim)) continue;
-		if (value && typeof value === "object" && !Array.isArray(value)) {
-			for (const role of Object.keys(value)) keys.add(role);
-		}
+		const projectId = PROJECT_ROLES_CLAIM.exec(claim)?.[1];
+		if (projectId) entries.push(...roleKeys(value).map((role) => `${projectId}:${role}`));
 	}
-	return [...keys].sort();
+	return entries.sort();
 }
 
 /**
@@ -151,6 +170,12 @@ async function deleteTargetIfThere(instanceHost: string, id: string) {
 }
 
 export namespace ZitadelClaims {
+	/** The names of the claims LAVIAC adds. */
+	export const CLAIMS = {
+		username: "urn:lcmc-auth:username",
+		roles: "urn:lcmc-auth:roles",
+		projectRoles: "urn:lcmc-auth:project-roles",
+	} as const;
 	export const TARGET_NAME = "laviac-claims";
 	/** `preuserinfo` runs for the ID token and userinfo, `preaccesstoken` for JWT access tokens. */
 	export const FUNCTION_NAMES = ["preuserinfo", "preaccesstoken"] as const;
@@ -350,7 +375,7 @@ export namespace ZitadelClaims {
 			if (!res.ok) return `the webhook answered HTTP ${res.status} at ${url}`;
 			const answer = (await res.json()) as Answer;
 			const ok = answer.append_claims?.some(
-				(claim) => claim.key === "username" && claim.value === SELF_TEST_USER,
+				(claim) => claim.key === CLAIMS.username && claim.value === SELF_TEST_USER,
 			);
 			return ok ? null : `the webhook at ${url} answered without the claims`;
 		} catch (err) {
@@ -363,10 +388,13 @@ export namespace ZitadelClaims {
 		const claims: Claim[] = [];
 
 		const username = plainUsername(payload);
-		if (username) claims.push({ key: "username", value: username });
+		if (username) claims.push({ key: CLAIMS.username, value: username });
 
-		const groups = roleKeys(payload.userinfo ?? {});
-		if (groups.length > 0) claims.push({ key: "groups", value: groups });
+		const userinfo = payload.userinfo ?? {};
+		const roles = roleKeys(userinfo[ROLES_CLAIM]).sort();
+		if (roles.length > 0) claims.push({ key: CLAIMS.roles, value: roles });
+		const qualified = projectRoles(userinfo);
+		if (qualified.length > 0) claims.push({ key: CLAIMS.projectRoles, value: qualified });
 
 		return claims.length > 0 ? { append_claims: claims } : {};
 	}
