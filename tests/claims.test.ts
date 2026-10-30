@@ -99,6 +99,29 @@ describe("Claims answer", () => {
 		});
 	});
 
+	test("project-roles: the first `:` ends the project id, whatever the role key holds", () => {
+		const body = payload({
+			profile: false,
+			userinfo: {
+				"urn:zitadel:iam:org:project:111:roles": roleMap("termix:admin"),
+				// A custom id (the v2 API allows any).
+				"urn:zitadel:iam:org:project:infra-tools:roles": roleMap("viewer"),
+				// A custom id with a `:` could not be told apart from the role key; left out.
+				"urn:zitadel:iam:org:project:a:b:roles": roleMap("admin"),
+			},
+		});
+		const entries = answer(body).append_claims?.[0]?.value as string[];
+		expect(entries).toEqual(["111:termix:admin", "infra-tools:viewer"]);
+		const split = (entry: string) => [
+			entry.slice(0, entry.indexOf(":")),
+			entry.slice(entry.indexOf(":") + 1),
+		];
+		expect(entries.map(split)).toEqual([
+			["111", "termix:admin"],
+			["infra-tools", "viewer"],
+		]);
+	});
+
 	test("roles: none when only other projects' roles are sent", () => {
 		const body = payload({
 			profile: false,

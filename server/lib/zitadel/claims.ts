@@ -17,9 +17,12 @@
  *
  * Roles of different projects stay apart: the same role key can mean different things in two
  * projects, so `roles` holds the app's own project only, and `project-roles` names the project in
- * every entry. Project ids are digits, so the first `:` ends the id whatever the role key holds
- * (Zitadel puts no limit on its characters). Plain and qualified entries never share a claim: a
- * role key such as `<other project id>:admin` could pass for another project's role there.
+ * every entry. Zitadel allows any character in a role key, so no separator is safe on its own;
+ * the project id is. The id comes first and never holds a `:`, so the first `:` ends it, whatever
+ * the role key holds. Zitadel's own ids are digits; a project created with a custom id that
+ * contains a `:` (the v2 API allows any) is left out, as it could not be told apart. Plain and
+ * qualified entries never share a claim: a role key such as `<other project id>:admin` could pass
+ * for another project's role there.
  *
  * The names are namespaced because Zitadel drops a claim from an action when the key is already
  * set, and keeps names to itself: everything under `urn:zitadel:iam`, and from v5 (on its main
@@ -53,9 +56,10 @@ const KEY_REFRESH_INTERVAL_MS = 30_000;
 // An unknown instance id refetches the instance list (it may be new), at most this often.
 const INSTANCE_LIST_REFRESH_INTERVAL_MS = 60_000;
 
-// Zitadel's roles claims: the app's own project, and one per project with its id.
+// Zitadel's roles claims: the app's own project, and one per project with its id (only ids
+// without a `:`, see the top of the file).
 const ROLES_CLAIM = "urn:zitadel:iam:org:project:roles";
-const PROJECT_ROLES_CLAIM = /^urn:zitadel:iam:org:project:(\d+):roles$/;
+const PROJECT_ROLES_CLAIM = /^urn:zitadel:iam:org:project:([^:]+):roles$/;
 
 const signingKeys = new Map<string, { key: string | null; fetchedAt: number }>();
 let knownInstances: { ids: Set<string>; fetchedAt: number } | null = null;
